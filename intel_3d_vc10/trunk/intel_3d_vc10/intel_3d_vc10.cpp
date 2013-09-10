@@ -26,11 +26,13 @@
 #include <pcl/point_types.h>
 
 #include <pcl/point_cloud.h>
+#include <pcl/octree/octree.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_types.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/visualization/pcl_visualizer.h>
+
 
 
 using namespace std;
@@ -245,9 +247,23 @@ int wmain(int argc, WCHAR* argv[]) {
 			}
 		}
 
+	
 	for (int f=0;;f++, Sleep(5)) { 
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cameraCoord_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr worldCoord_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
+		pcl::octree::OctreePointCloud<pcl::PointXYZRGBA> octreeA (1.0f);
 		
+		octreeA.setInputCloud (cameraCoord_cloud);
+		octreeA.addPointsFromInputCloud ();
+		
+		//pcl::octree::OctreePointCloud<pcl::PointXYZRGBA>::LeafNodeIterator itL (octreeA);
+		/*
+		unsigned int leafCount = 0;
+		while ( *++itL )
+		{
+			++leafCount;
+		}
+		printf("%d\n", leafCount);*/
 
 		bool blinkOutput = false;
 		//printf("%d\n", f);
@@ -532,7 +548,7 @@ int wmain(int argc, WCHAR* argv[]) {
 
 			//printf("%f, %f, %f\n", t1.val[0], t2.val[0], t3.val[0]);
 
-			pcl::PointCloud<pcl::PointXYZRGBA>::Ptr worldCoord_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
+			
 			pcl::PointXYZRGBA p_prev;
 
 			const int line_max = 7;
@@ -703,13 +719,14 @@ int wmain(int argc, WCHAR* argv[]) {
 
 			//float *uvmap=(float*)data1.planes[2]; 
 			
-
+			//Mark Camera Position.
+			//Origin
 			cv::Mat pos_origin(4, 1, CV_32F);
 			pos_origin.at<float>(0, 0) = 0;
 			pos_origin.at<float>(1, 0) = 0;
 			pos_origin.at<float>(2, 0) = 0;
 			pos_origin.at<float>(3, 0) = 1;
-
+			//camera_posiion_in_world_coordination = (M_ext)^-1 * origin
 			cv::Mat conv_pos_origin = extMatInv*pos_origin;
 			pcl::PointXYZRGBA p_origin;		
 			p_origin.x = conv_pos_origin.at<float>(0, 0)/scene_scale_factor;
@@ -721,88 +738,7 @@ int wmain(int argc, WCHAR* argv[]) {
 			worldCoord_cloud->push_back(p_origin);
 
 
-			for (int y=0;y<(int)pinfo2.imageInfo.height;y++) { 
-				for (int x=0;x<(int)pinfo2.imageInfo.width;x++) { 
-					int vert_idx = 3*(y*pinfo2.imageInfo.width+x);
-
-					//int xx=(int)(uvmap[(y*pinfo2.imageInfo.width+x)*2+0] *pinfo1.imageInfo.width+0.5); 
-					//int yy=(int)(uvmap[(y*pinfo2.imageInfo.width+x)*2+1] *pinfo1.imageInfo.height+0.5); 
-
-					cv::Vec2s loc = UVImage.at<cv::Vec2s>(y, x);
-					int xx = (int)loc.val[0];
-					int yy = (int)loc.val[1];
-
-					//printf("%d, %d /// %d, %d\n", xx, yy, xx_tt, yy_tt);
-
-					//int ux = CALIBRATION_UX;
-					//int uy = CALIBRATION_UY;
-					//float px = CALIBRATION_PX;
-					//short depth_value = vertidex[vert_idx+2];//depthImage.at<short>(y, x);
-					////printf("%f, %d, %f\n", px, depth_value, px / depth_value);
-					//xx = xx + ux + px / depth_value;
-					//yy = yy + uy;
-
-					
-
-					/*cv::Mat pos(4, 1, CV_32F);
-					pos.at<float>(0, 0) = vertidex[vert_idx];
-					pos.at<float>(1, 0) = vertidex[vert_idx+1];
-					pos.at<float>(2, 0) = vertidex[vert_idx+2];
-					pos.at<float>(3, 0) = 1;
-
-					cv::Mat conv_pos = extMatInv*pos;
-					
-
-					pcl::PointXYZRGBA p1;				
-					p1.x = conv_pos.at<float>(0, 0)/scene_scale_factor;
-					p1.y = conv_pos.at<float>(1, 0)/scene_scale_factor;
-					p1.z = conv_pos.at<float>(2, 0)/scene_scale_factor;
-
-					if(abs(p1.x) > 5 || abs(p1.y) > 5 || p1.z > 5 ) continue;
-
-					if (xx>=0 && xx<(int)pinfo1.imageInfo.width && yy>=0 && yy<(int)pinfo1.imageInfo.height) {
-						int color = ((pxcU32*)data2.planes[0])[yy*pinfo1.imageInfo.width+xx];
-						
-						cv::Vec4b colorValue = image.at<cv::Vec4b>(yy, xx);
-
-						p1.r = colorValue.val[2];
-						p1.g = colorValue.val[1];
-						p1.b = colorValue.val[0];
-						worldCoord_cloud->push_back(p1);
-					}*/
-
-				}
-			}
-				
-				
-
-			//cvProjectPoints2(&objPoints2, rvecs, tvecs, &camera_matrix2, &distCoeffs2, imagePoints22);
-
-			//for(int i = 0 ; i < obj_pnts.size() ; i++){
-
-			//	//cv::Vec2f loc = imagePointsMat.at<cv::Vec2f>(cv::Point(i, 0));
-			//	
-			//	CvScalar loc = cvGet2D(imagePoints22, i, 0);
-			//	float x = loc.val[0];
-			//	float y = loc.val[1];
-			//	//printf("%f, %f\n", x, y);
-			//	if(x > 0 && y > 0 && x < pinfo1.imageInfo.width &&  y < pinfo1.imageInfo.height){
-			//		//printf("hi\n");
-			//		pcl::PointXYZRGBA p;
-			//		p.x = obj_pnts[i].x/scene_scale_factor;
-			//		p.y = obj_pnts[i].y/scene_scale_factor;
-			//		p.z = obj_pnts[i].z/scene_scale_factor;
-			//		//printf("%f, %f, %f\n", p.x, p.y, p.z); 
-
-			//		cv::Vec4b colorValue = image.at<cv::Vec4b>(y, x); 
-			//		p.r = colorValue.val[2];
-			//		p.g = colorValue.val[1];
-			//		p.b = colorValue.val[0];
-			//		worldCoord_cloud->push_back(p);
-			//	}
-			//	//cv::circle(image, cv::Point(x, y), 2, cv::Scalar(255, 120, 0), 2);
-			//}
-
+			
 
 			for (int y=0;y<(int)pinfo2.imageInfo.height;y++) { 
 				for (int x=0;x<(int)pinfo2.imageInfo.width;x++) { 
@@ -921,8 +857,7 @@ int wmain(int argc, WCHAR* argv[]) {
 
 
 				
-			scene_viewer->addPointCloud ( worldCoord_cloud, "worldCoord_cloud", vp_2);
-			scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "worldCoord_cloud");
+			
         }
 		
 		
@@ -1151,7 +1086,9 @@ int wmain(int argc, WCHAR* argv[]) {
 		
 		scene_viewer->addPointCloud (cameraCoord_cloud, "cameraCoord_cloud", vp_1);
 		scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cameraCoord_cloud");
-		
+		scene_viewer->addPointCloud ( worldCoord_cloud, "worldCoord_cloud", vp_2);
+		scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "worldCoord_cloud");
+
 		scene_viewer->spinOnce();
 		scene_viewer->removeText3D("v2 text", vp_2);
 		scene_viewer->removePointCloud("cameraCoord_cloud", vp_1);
