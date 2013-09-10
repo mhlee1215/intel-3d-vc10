@@ -256,7 +256,7 @@ int wmain(int argc, WCHAR* argv[]) {
 		octreeA.setInputCloud (cameraCoord_cloud);
 		octreeA.addPointsFromInputCloud ();
 		
-		//pcl::octree::OctreePointCloud<pcl::PointXYZRGBA>::LeafNodeIterator itL (octreeA);
+		//pcl::octree::OctreePointCloud<pcl::PointXYZRGBA>::LeafNodeIterator itL ((octreeA);
 		/*
 		unsigned int leafCount = 0;
 		while ( *++itL )
