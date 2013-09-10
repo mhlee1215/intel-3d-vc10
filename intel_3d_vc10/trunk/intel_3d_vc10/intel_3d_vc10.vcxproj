@@ -76,7 +76,7 @@
     <LinkIncremental>true</LinkIncremental>
     <EmbedManifest>false</EmbedManifest>
     <IncludePath>D:\Program Files\VTK 5.8.0\include\vtk-5.8;D:\lib\OpenCV2.4.6\build\include;$(PCSDK_DIR)/include;$(PCSDK_DIR)/sample/common/include;D:/Program Files/PCL 1.6.0/3rdParty/VTK/include/vtk-5.8;D:/Program Files/PCL 1.6.0/include/pcl-1.6;D:/Program Files/PCL 1.6.0/3rdParty/Eigen/include;D:/Program Files/PCL 1.6.0/3rdParty/Boost/include;C:/Program Files/OpenNI/Include;D:/Program Files/PCL 1.6.0/3rdParty/FLANN/include;D:/Program Files/PCL 1.6.0/3rdParty/Qhull/include;$(IncludePath);</IncludePath>
-    <LibraryPath>D:\lib\OpenCV2.4.6_gpu\lib;$(PCSDK_DIR)/lib/$(Platform)_MDd;$(PCSDK_DIR)/sample/common/lib/$(PlatformName)_MDd;$(LibraryPath)</LibraryPath>
+    <LibraryPath>D:\lib\OpenCV2.4.6_gpu\lib;$(PCSDK_DIR)/lib/$(Platform)_MDd;$(PCSDK_DIR)/sample/common/lib/$(PlatformName)_MDd;D:\Program Files\PCL 1.6.0\3rdParty\Boost\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
