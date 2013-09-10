@@ -363,11 +363,11 @@ int wmain(int argc, WCHAR* argv[]) {
 			}
 		}
 
-		cv::Mat UVImage_undistorted;// = UVImage.clone();
-		cv::Mat temp2;
-		cv::resize(UVImage, temp2, cv::Size(640, 320), 0.0, 0.0, CV_INTER_NN);
-		
-		cv::undistort(temp2, UVImage_undistorted, cameraMatrix, distCoeffs);
+		//cv::Mat UVImage_undistorted;// = UVImage.clone();
+		//cv::Mat temp2;
+		//cv::resize(UVImage, temp2, cv::Size(640, 320), 0.0, 0.0, CV_INTER_NN);
+		//
+		//cv::undistort(temp2, UVImage_undistorted, cameraMatrix, distCoeffs);
 
 		
 
@@ -449,7 +449,7 @@ int wmain(int argc, WCHAR* argv[]) {
 			CvMat cameraMatrix_cvmat = cameraMatrix;
 			CvMat distCoeffs_cvmat = distCoeffs;
 			//Compute Extrinsic Parameter
-			cvFindExtrinsicCameraParams2(&obj_pnt_cvMat, &img_pnt_cvMat, &cameraMatrix_cvmat, &distCoeffs_cvmat, rvecs, tvecs);
+			cvFindExtrinsicCameraParams2(&obj_pnt_cvMat, &img_pnt_cvMat, &cameraMatrix_cvmat, NULL, rvecs, tvecs);
 			
 			//cv::calibrateCamera(objectPoints, pointBuf2, cv::Size(640, 320), cameraMatrix, distCoeffs, rvecs_mat, tvecs_mat);
 			//Get camera position
@@ -502,7 +502,16 @@ int wmain(int argc, WCHAR* argv[]) {
 			cv::Mat extMat;
 			cv::vconcat(extMat_3, b_row, extMat);
 			cv::Mat extMatInv = extMat.inv();
-			/*printf("extrinsic Matrix\n");
+			
+			/*printf("Intrinsic Matrix\n");
+			for(int i = 0 ; i < 3 ; i++){
+				for(int j = 0 ; j < 3 ; j++){
+					printf("%f\t", cameraMatrix.at<double>(i, j));
+				}
+				printf("\n");
+			}
+			printf("\n");
+			printf("extrinsic Matrix\n");
 			printf("%d, %d\n", extMat.size().height, extMat.size().width);
 			for(int i = 0 ; i < 4 ; i++){
 				for(int j = 0 ; j < 4 ; j++){
@@ -579,12 +588,19 @@ int wmain(int argc, WCHAR* argv[]) {
 					
 
 				pcl::PointXYZRGBA p1;				
-				p1.x = conv_pos.at<float>(0, 0)/scene_scale_factor;
-				p1.y = conv_pos.at<float>(1, 0)/scene_scale_factor;
-				p1.z = conv_pos.at<float>(2, 0)/scene_scale_factor;
-				p1.r = color.val[0];
-				p1.g = color.val[1];
-				p1.b = color.val[2];
+				p1.x = conv_pos.at<float>(0, 0);///conv_pos.at<float>(2, 0);
+				p1.y = conv_pos.at<float>(1, 0);///conv_pos.at<float>(2, 0);
+				p1.z = conv_pos.at<float>(2, 0);///conv_pos.at<float>(2, 0);
+
+				//printf("%f, %f, %f\n", conv_pos.at<float>(0, 0), conv_pos.at<float>(1, 0), conv_pos.at<float>(2, 0));
+
+				p1.x /= scene_scale_factor;
+				p1.y /= scene_scale_factor;
+				p1.z /= scene_scale_factor;
+
+				p1.r = 230;//color.val[0];
+				p1.g = 230;//color.val[1];
+				p1.b = 100;//color.val[2];
 				cameraCoord_cloud->push_back(p1);
 
 
@@ -605,7 +621,7 @@ int wmain(int argc, WCHAR* argv[]) {
 				reproject_x /= (reproject_z);
 				reproject_y /= (reproject_z);
 				
-				cv::circle(image_undistorted, cv::Point(reproject_x, reproject_y), 2, cv::Scalar(color.val[2], color.val[1], color.val[0]), 2);
+				cv::circle(image, cv::Point(reproject_x, reproject_y), 2, cv::Scalar(color.val[2], color.val[1], color.val[0]), 2);
 
 
 				cv::Mat pos_img(3, 1, CV_64FC1);
@@ -614,12 +630,23 @@ int wmain(int argc, WCHAR* argv[]) {
 				pos_img.at<double>(2, 0) = 1;
 				cv::Mat conv_pos_camera = cameraMatrix_inv*pos_img;
 				pcl::PointXYZRGBA p2;				
-				p2.x = conv_pos_camera.at<double>(0, 0);///scene_scale_factor;
-				p2.y = conv_pos_camera.at<double>(1, 0);///scene_scale_factor;
-				p2.z = conv_pos_camera.at<double>(2, 0);///scene_scale_factor;
-				p2.r = color.val[0];
-				p2.g = color.val[1];
-				p2.b = color.val[2];
+
+				
+				p2.z = conv_pos.at<float>(2, 0);//conv_pos_camera.at<double>(2, 0);///scene_scale_factor;
+				//1120
+				//1650
+				//printf("z : %f\n", p2.z);
+				p2.x = conv_pos_camera.at<double>(0, 0) * p2.z;///scene_scale_factor;
+				p2.y = conv_pos_camera.at<double>(1, 0) * p2.z;///scene_scale_factor;
+
+				p2.x /= scene_scale_factor;
+				p2.y /= scene_scale_factor;
+				p2.z /= scene_scale_factor;
+
+
+				p2.r = 230;//color.val[0];
+				p2.g = 100;//color.val[1];
+				p2.b = 230;//color.val[2];
 				cameraCoord_cloud->push_back(p2);
 
 			}
@@ -779,6 +806,7 @@ int wmain(int argc, WCHAR* argv[]) {
 
 			for (int y=0;y<(int)pinfo2.imageInfo.height;y++) { 
 				for (int x=0;x<(int)pinfo2.imageInfo.width;x++) { 
+
 					int vert_idx = 3*(y*pinfo2.imageInfo.width+x);
 					int xx=(int)(uvmap[(y*pinfo2.imageInfo.width+x)*2+0] *pinfo1.imageInfo.width+0.5); 
 					int yy=(int)(uvmap[(y*pinfo2.imageInfo.width+x)*2+1] *pinfo1.imageInfo.height+0.5); 
@@ -805,7 +833,11 @@ int wmain(int argc, WCHAR* argv[]) {
 
 					double c_coord_x = conv_pos_camera.at<double>(0, 0);///scene_scale_factor;
 					double c_coord_y = conv_pos_camera.at<double>(1, 0);///scene_scale_factor;
-					//double c_coord_z = conv_pos_camera.at<double>(2, 0);///scene_scale_factor;
+					double c_coord_z = conv_pos_camera.at<double>(2, 0);///scene_scale_factor;
+
+					c_coord_z *= depth_value*1.5;//vertidex[vert_idx+2];
+					c_coord_x *= c_coord_z;
+					c_coord_y *= c_coord_z;
 
 					/*double distance_o_to_xy = sqrt((double)1*1+xx*xx+yy*yy);
 					double scale = distance_o_to_xy / depth_value;
@@ -815,9 +847,9 @@ int wmain(int argc, WCHAR* argv[]) {
 					double c_coord_z_c = 1 * scale;*/
 
 					pcl::PointXYZRGBA p2;				
-					p2.x = c_coord_x;///scene_scale_factor;
-					p2.y = c_coord_y;///scene_scale_factor;
-					p2.z = vertidex[vert_idx+2]/scene_scale_factor;
+					p2.x = c_coord_x/scene_scale_factor;
+					p2.y = c_coord_y/scene_scale_factor;
+					p2.z = c_coord_z/scene_scale_factor;
 
 					cv::Vec4b colorValue = image.at<cv::Vec4b>(yy, xx);
 					p2.r = colorValue.val[2];
@@ -855,10 +887,13 @@ int wmain(int argc, WCHAR* argv[]) {
 					//p_img_c_coord.b = 120;*/
 					//cameraCoord_cloud->push_back(p_img_c_coord);
 
+
+
+
 					cv::Mat pos(4, 1, CV_32F);
-					pos.at<float>(0, 0) = c_coord_x*scene_scale_factor;//vertidex[vert_idx];
-					pos.at<float>(1, 0) = c_coord_y*scene_scale_factor;//vertidex[vert_idx+1];
-					pos.at<float>(2, 0) = vertidex[vert_idx+2];///scene_scale_factor;//vertidex[vert_idx+2]; 
+					pos.at<float>(0, 0) = c_coord_x;//*scene_scale_factor;//vertidex[vert_idx];
+					pos.at<float>(1, 0) = c_coord_y;//*scene_scale_factor;//vertidex[vert_idx+1];
+					pos.at<float>(2, 0) = c_coord_z;//vertidex[vert_idx+2];///scene_scale_factor;//vertidex[vert_idx+2]; 
 					pos.at<float>(3, 0) = 1;
 
 					cv::Mat conv_pos = extMatInv*pos;
@@ -1053,19 +1088,21 @@ int wmain(int argc, WCHAR* argv[]) {
 		printf("<%d, %d> -> <%d, %d, %d>\n", curVertexMouseLoc.x, curVertexMouseLoc.y, vertidex[idx], vertidex[idx+1], vertidex[idx+2]);*/
 
 		
-		//PXCPointU32 curDepthMouseLoc = renders[1]->m_mouse;
-		////long *depthidex = (long*)data4.planes[0];
-		////int idx = (curDepthMouseLoc.y*pinfo2.imageInfo.width+curDepthMouseLoc.x);
+		PXCPointU32 curDepthMouseLoc = renders[1]->m_mouse;
+		//long *depthidex = (long*)data4.planes[0];
+		//int idx = (curDepthMouseLoc.y*pinfo2.imageInfo.width+curDepthMouseLoc.x);
 		//short *vertidex = (short*)data5.planes[0];
-		//printf("<%d, %d>\n", curDepthMouseLoc.x, curDepthMouseLoc.y);
-		//int mx = curDepthMouseLoc.x;
-		//int my = curDepthMouseLoc.y;
-		//if(mx > 0 && my > 0){
-		//	int vidx = 3*(curDepthMouseLoc.y*pinfo2.imageInfo.width+curDepthMouseLoc.x);
-		//	printf("<%d, %d>\n", curDepthMouseLoc.x, curDepthMouseLoc.y);
-		//	printf("\t-> <%d>\n", depthImage.at<short>(curDepthMouseLoc.y, curDepthMouseLoc.x));
-		//	printf("\t-> <%d, %d, %d>, D = %f\n", vertidex[vidx], vertidex[vidx+1], vertidex[vidx+2], sqrt((double)vertidex[vidx]*vertidex[vidx]+vertidex[vidx+1]*vertidex[vidx+1]+vertidex[vidx+2]*vertidex[vidx+2]));
-		//}
+		/*
+		printf("<%d, %d>\n", curDepthMouseLoc.x, curDepthMouseLoc.y);
+		int mx = curDepthMouseLoc.x;
+		int my = curDepthMouseLoc.y;
+		if(mx > 0 && my > 0){
+			int vidx = 3*(curDepthMouseLoc.y*pinfo2.imageInfo.width+curDepthMouseLoc.x);
+			printf("<%d, %d>\n", curDepthMouseLoc.x, curDepthMouseLoc.y);
+			printf("\t-> <%d>\n", depthImage.at<short>(curDepthMouseLoc.y, curDepthMouseLoc.x));
+			printf("\t-> <%d, %d, %d>, D = %f\n", vertidex[vidx], vertidex[vidx+1], vertidex[vidx+2], sqrt((double)vertidex[vidx]*vertidex[vidx]+vertidex[vidx+1]*vertidex[vidx+1]+vertidex[vidx+2]*vertidex[vidx+2]));
+		}
+		*/
 		
 		//Add function by clicking the corner of img
 		PXCPointU32 curMouseLoc = renders[0]->m_mouse;
