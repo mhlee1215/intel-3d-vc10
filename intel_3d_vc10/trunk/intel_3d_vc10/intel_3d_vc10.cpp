@@ -48,7 +48,7 @@ enum { DETECTION = 0, CAPTURING = 1, CALIBRATED = 2 };
 const int VOXEL_DIM = 120;
 const int VOXEL_SIZE = VOXEL_DIM*VOXEL_DIM*VOXEL_DIM;
 const int VOXEL_SLICE = VOXEL_DIM*VOXEL_DIM;
-
+const int distance_threshold = 7000;
 
 
 
@@ -248,13 +248,14 @@ int wmain(int argc, WCHAR* argv[]) {
 		}
 
 	
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr worldCoord_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
 	for (int f=0;;f++, Sleep(5)) { 
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cameraCoord_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
-		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr worldCoord_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
-		pcl::octree::OctreePointCloud<pcl::PointXYZRGBA> octreeA (1.0f);
 		
-		octreeA.setInputCloud (cameraCoord_cloud);
-		octreeA.addPointsFromInputCloud ();
+		//pcl::octree::OctreePointCloud<pcl::PointXYZRGBA> octreeA (1.0f);
+		
+		//octreeA.setInputCloud (cameraCoord_cloud);
+		//octreeA.addPointsFromInputCloud ();
 		
 		//pcl::octree::OctreePointCloud<pcl::PointXYZRGBA>::LeafNodeIterator itL ((octreeA);
 		/*
@@ -752,7 +753,7 @@ int wmain(int argc, WCHAR* argv[]) {
 					
 					short depth_value = depthImage.at<short>(y, x);
 					//Set depth threshold 1000 = 1 meter
-					if(depth_value > 5000) continue;
+					if(depth_value > distance_threshold) continue;
 					//printf("%f, %d, %f\n", px, depth_value, px / depth_value);
 					xx = xx + ux + px / depth_value;
 					yy = yy + uy;
