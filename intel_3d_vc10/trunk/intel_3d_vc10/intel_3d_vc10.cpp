@@ -27,13 +27,14 @@
 
 #include <pcl/point_cloud.h>
 #include <pcl/octree/octree.h>
+#include <pcl/octree/octree_impl.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_types.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
-
+#include "octree_viewer.h"
 
 using namespace std;
 
@@ -226,7 +227,7 @@ int wmain(int argc, WCHAR* argv[]) {
 	scene_viewer->addText ("Camera Position - ", 10, 30, 15, 1.0, 1.0, 1.0, "v2 camera position", vp_2);
 
 	scene_viewer->createViewPort (2*1.0/vp_num, 0, 1.0, 1.0, vp_3);
-	scene_viewer->setBackgroundColor(0, 0, 0, vp_3);
+	scene_viewer->setBackgroundColor(0.3, 0.3, 0.3, vp_3);
 	scene_viewer->addText ("Voxel Coloring result", 10, 10, 20, 1.0, 1.0, 1.0, "v3 title", vp_3);
 	
 
@@ -350,12 +351,12 @@ int wmain(int argc, WCHAR* argv[]) {
 		
 		cv::Mat depthImage(240/*DepthSize.height*/, 320/*DepthSize.width*/, CV_16UC1, data4.planes[0], data4.pitches[0]);
 
-		cv::Mat depthImage_up;
-		cv::resize(depthImage, depthImage_up, cv::Size(640, 480));
-		double m, M;
-		cv::minMaxIdx(depthImage, &m, &M, 0, 0, depthImage < 32000);
-		cv::Mat dstImage(depthImage.size(), CV_8UC1);
-		depthImage.convertTo(dstImage, CV_8UC1, 255/(M-m), 1.0*(-m)/(M-m));
+		//cv::Mat depthImage_up;
+		//cv::resize(depthImage, depthImage_up, cv::Size(640, 480));
+		//double m, M;
+		//cv::minMaxIdx(depthImage, &m, &M, 0, 0, depthImage < 32000);
+		//cv::Mat dstImage(depthImage.size(), CV_8UC1);
+		//depthImage.convertTo(dstImage, CV_8UC1, 255/(M-m), 1.0*(-m)/(M-m));
 		//dstImage = 255 - dstImage;
 
 
@@ -885,15 +886,15 @@ int wmain(int argc, WCHAR* argv[]) {
 			}
         }
 		else{
-			printf("aaa");
+			//printf("aaa");
 			pcl::PointCloud<pcl::PointXYZRGBA>::Ptr color_voxel_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);	
-			for(int i = 0 ; i < 1000 ; i+=10){
-				for(int j = 0 ; j < 1000 ; j+=10){
-					for(int k = 0 ; k < 1000 ; k+=10){
+			for(int i = 0 ; i < 1000 ; i+=50){
+				for(int j = 0 ; j < 1000 ; j+=50){
+					for(int k = 0 ; k < 1000 ; k+=50){
 						pcl::PointXYZRGBA p;
-						p.x = i / 1000;
-						p.y = j / 1000;
-						p.z = k / 1000;
+						p.x = i / 1000.0;
+						p.y = j / 1000.0;
+						p.z = k / 1000.0;
 						p.r = (i/1000.0) * 255;
 						p.g = (j/1000.0) * 255;
 						p.b = (k/1000.0) * 255;
@@ -904,12 +905,29 @@ int wmain(int argc, WCHAR* argv[]) {
 			world_coord_octree.setInputCloud(color_voxel_cloud);
 			world_coord_octree.addPointsFromInputCloud();
 
+			
+			
+			pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGBA>::Iterator tree_it;
+
+			pcl::PointXYZRGBA pp;
+			pp.x = 1;
+			pp.y = 1;
+			pp.z = 1;
+			world_coord_octree.deleteVoxelAtPoint(pp);
+			
+
+			std::vector<pcl::PointXYZRGBA> pointGrid;
+			//world_coord_octree.getOccupiedVoxelCenters (pointGrid);
+			
+			
 			scene_viewer->removePointCloud ( "voxel_coloring_cloud" , vp_3);
-
 			scene_viewer->addPointCloud (color_voxel_cloud, "voxel_coloring_cloud", vp_3);
-			scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "voxel_coloring_cloud");
-
+			scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "voxel_coloring_cloud");
 			scene_viewer->spinOnce();
+			
+			std::string a;
+			OctreeViewer v(a, 0.001);
+			
 		}
 		
 		unsigned char *depth_val = (unsigned char*)(depthImage.data);
@@ -923,8 +941,8 @@ int wmain(int argc, WCHAR* argv[]) {
 					int xx = (int)loc1.val[0];
 					int yy = (int)loc1.val[1];
 					
-					int depth = dstImage.at<unsigned char>(y, x);
-					if (xx>=0 && xx<(int)pinfo1.imageInfo.width && yy>=0 && yy<(int)pinfo1.imageInfo.height && depth < 255) 
+					int depth = depthImage.at<short>(y, x);//dstImage.at<unsigned char>(y, x);
+					if (xx>=0 && xx<(int)pinfo1.imageInfo.width && yy>=0 && yy<(int)pinfo1.imageInfo.height && depth < 5000) 
 						((pxcU32 *)data0.planes[0])[yy*pinfo1.imageInfo.width+xx] = 0x80FF0000; 				
 				} 
 			} 
