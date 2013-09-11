@@ -26,7 +26,6 @@
 #include <pcl/point_types.h>
 
 #include <pcl/point_cloud.h>
-#include <pcl/octree/octree.h>
 #include <pcl/octree/octree_impl.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
@@ -269,6 +268,8 @@ int wmain(int argc, WCHAR* argv[]) {
 	vector<cv::Point3f> objectPoints_all;
 	
 	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr worldCoord_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);	
+
+	OctreeViewer v(0.001);
 	for (int f=0;;f++, Sleep(5)) { 
 		
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cameraCoord_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
@@ -886,21 +887,23 @@ int wmain(int argc, WCHAR* argv[]) {
 			}
         }
 		else{
+			srand ((unsigned int) time (NULL));
 			//printf("aaa");
 			pcl::PointCloud<pcl::PointXYZ>::Ptr color_voxel_cloud (new pcl::PointCloud<pcl::PointXYZ>);	
-			for(int i = 0 ; i < 1000 ; i+=50){
-				for(int j = 0 ; j < 1000 ; j+=50){
-					for(int k = 0 ; k < 1000 ; k+=50){
+			for(int i = 0 ; i < 1000 ; i++){
+				//for(int j = 0 ; j < 1000 ; j+=50){
+//					for(int k = 0 ; k < 1000 ; k+=50){
 						pcl::PointXYZ p;
-						p.x = i / 10000.0;
-						p.y = j / 10000.0;
-						p.z = k / 10000.0;
+						p.x = rand ()/(float)(RAND_MAX*10);//i / 10000.0;
+						p.y = rand ()/(float)(RAND_MAX*10);//j / 10000.0;
+						p.z = rand ()/(float)(RAND_MAX*10);//k / 10000.0;
+						//printf("%f, %f, %f\n", p.x, p.y, p.z);
 						//p.r = (i/1000.0) * 255;
 						//p.g = (j/1000.0) * 255;
 						//p.b = (k/1000.0) * 255;
 						color_voxel_cloud->push_back(p);
-					}
-				}
+	//				}
+		//		}
 			}
 			//world_coord_octree.setInputCloud(color_voxel_cloud);
 			//world_coord_octree.addPointsFromInputCloud();
@@ -925,9 +928,35 @@ int wmain(int argc, WCHAR* argv[]) {
 			scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "voxel_coloring_cloud");
 			scene_viewer->spinOnce();
 			
+			pcl::PointXYZ searchPoint;
+			searchPoint.x = 0.05;
+			searchPoint.y = 0.05;
+			searchPoint.z = 0.05;
+
+			v.update_data(color_voxel_cloud);
+			//0 - 0.01
+			float radius = 0.02;
+			std::vector<int> pointIdxRadiusSearch;
+			std::vector<float> pointRadiusSquaredDistance;
+
+			{
 			
-			OctreeViewer v(color_voxel_cloud, 0.001);
 			
+			}
+
+
+			//v.octree_search.radiusSearch(searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance);
+			if (v.octree_search.radiusSearch (searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0)
+			{
+				printf("pointIdxRadiusSearch.size () : %d\n", pointIdxRadiusSearch.size ());
+				for (size_t i = 0; i < pointIdxRadiusSearch.size (); ++i){
+					v.octree.deleteVoxelAtPoint(pointIdxRadiusSearch[i]);
+					v.octree_search.deleteVoxelAtPoint(pointIdxRadiusSearch[i]);
+
+				}
+			}
+			//OctreeViewer v(color_voxel_cloud, 0.001);
+			v.viz.spinOnce();
 		}
 		
 		unsigned char *depth_val = (unsigned char*)(depthImage.data);
