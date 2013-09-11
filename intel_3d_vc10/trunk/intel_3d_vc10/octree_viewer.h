@@ -41,7 +41,7 @@
 #include <pcl/visualization/point_cloud_handlers.h>
 #include <pcl/visualization/common/common.h>
 
-#include <pcl/octree/octree.h>
+//#include <pcl/octree/octree.h>
 #include <pcl/octree/octree_impl.h>
 
 #include <pcl/filters/filter.h>
@@ -59,9 +59,47 @@
 class OctreeViewer
 {
 public:
+  OctreeViewer (double resolution) :
+    viz ("Octree visualizator"),
+        displayCloud (new pcl::PointCloud<pcl::PointXYZ>()), octree (resolution), octree_search(resolution), displayCubes(false),
+        showPointsWithCubes (false), wireframe (true)
+  {
+
+    //try to load the cloud
+    //if (!loadCloud(filename))
+     // return;
+
+	
+	
+	//viz.initCameraParameters();
+    //register keyboard callbacks
+    viz.registerKeyboardCallback(&OctreeViewer::keyboardEventOccurred, *this, 0);
+
+    //key legends
+    viz.addText("Keys:", 0, 170, 0.0, 1.0, 0.0, "keys_t");
+    viz.addText("a -> Increment displayed depth", 10, 155, 0.0, 1.0, 0.0, "key_a_t");
+    viz.addText("z -> Decrement displayed depth", 10, 140, 0.0, 1.0, 0.0, "key_z_t");
+    viz.addText("d -> Toggle Point/Cube representation", 10, 125, 0.0, 1.0, 0.0, "key_d_t");
+    viz.addText("x -> Show/Hide original cloud", 10, 110, 0.0, 1.0, 0.0, "key_x_t");
+    viz.addText("s/w -> Surface/Wireframe representation", 10, 95, 0.0, 1.0, 0.0, "key_sw_t");
+
+    //set current level to half the maximum one
+    displayedDepth = 1;
+
+    //show octree at default depth
+    
+
+    //reset camera
+    viz.resetCameraViewpoint("cloud");
+
+	//viz.addCoordinateSystem(1.0);
+    //run main loop
+    //run();
+
+  };
   OctreeViewer (pcl::PointCloud<pcl::PointXYZ>::Ptr point_colud, double resolution) :
     viz ("Octree visualizator"), cloud (point_colud),
-        displayCloud (new pcl::PointCloud<pcl::PointXYZ>()), octree (resolution), displayCubes(false),
+        displayCloud (new pcl::PointCloud<pcl::PointXYZ>()), octree (resolution), octree_search (resolution), displayCubes(false),
         showPointsWithCubes (false), wireframe (true)
   {
 
@@ -103,8 +141,33 @@ public:
     //run main loop
     run();
 
-  }
+  };
 
+  void update_data(pcl::PointCloud<pcl::PointXYZ>::Ptr point_cloud)
+  {
+    //cloud = point_cloud;
+	octree = pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZ>(0.001);
+	octree.setInputCloud(point_cloud);
+    //update bounding box automatically
+    //octree.defineBoundingBox();
+    //add points in the tree
+    octree.addPointsFromInputCloud();
+
+	octree_search = pcl::octree::OctreePointCloudSearch<pcl::PointXYZ>(0.001);
+	octree_search.setInputCloud(point_cloud);
+    //update bounding box automatically
+    //octree.defineBoundingBox();
+    //add points in the tree
+    octree_search.addPointsFromInputCloud();
+
+	//printf("octree depth : %d",octree.getTreeDepth());
+
+	extractPointsAtLevel(displayedDepth);
+  };
+  pcl::visualization::PCLVisualizer viz;
+  //octree
+  pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZ> octree;
+  pcl::octree::OctreePointCloudSearch<pcl::PointXYZ> octree_search;
 private:
   //========================================================
   // PRIVATE ATTRIBUTES
@@ -112,14 +175,13 @@ private:
   //visualizer
   pcl::PointCloud<pcl::PointXYZ>::Ptr xyz;
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr xyz_rgb;
-
-  pcl::visualization::PCLVisualizer viz;
+  
+  
   //original cloud
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
   //displayed_cloud
   pcl::PointCloud<pcl::PointXYZ>::Ptr displayCloud;
-  //octree
-  pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZ> octree;
+  
   //level
   int displayedDepth;
   //bool to decide if we display points or cubes
@@ -181,29 +243,29 @@ private:
    *  Also initialize the octree
    *
    */
-  bool loadCloud(std::string &filename)
-  {
-    std::cout << "Loading file " << filename.c_str() << std::endl;
-    //read cloud
-    if (pcl::io::loadPCDFile(filename, *cloud))
-    {
-      std::cerr << "ERROR: Cannot open file " << filename << "! Aborting..." << std::endl;
-      return false;
-    }
+  //bool loadCloud(std::string &filename)
+  //{
+  //  std::cout << "Loading file " << filename.c_str() << std::endl;
+  //  //read cloud
+  //  if (pcl::io::loadPCDFile(filename, *cloud))
+  //  {
+  //    std::cerr << "ERROR: Cannot open file " << filename << "! Aborting..." << std::endl;
+  //    return false;
+  //  }
 
-    //remove NaN Points
-    std::vector<int> nanIndexes;
-    pcl::removeNaNFromPointCloud(*cloud, *cloud, nanIndexes);
-    std::cout << "Loaded " << cloud->points.size() << " points" << std::endl;
+  //  //remove NaN Points
+  //  std::vector<int> nanIndexes;
+  //  pcl::removeNaNFromPointCloud(*cloud, *cloud, nanIndexes);
+  //  std::cout << "Loaded " << cloud->points.size() << " points" << std::endl;
 
-    //create octree structure
-    octree.setInputCloud(cloud);
-    //update bounding box automatically
-    octree.defineBoundingBox();
-    //add points in the tree
-    octree.addPointsFromInputCloud();
-    return true;
-  }
+  //  //create octree structure
+  //  octree.setInputCloud(cloud);
+  //  //update bounding box automatically
+  //  octree.defineBoundingBox();
+  //  //add points in the tree
+  //  octree.addPointsFromInputCloud();
+  //  return true;
+  //}
 
   /* \brief Helper function that draw info for the user on the viewer
    *
@@ -336,7 +398,7 @@ private:
     pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZ>::Iterator tree_it_end = octree.end();
 
     pcl::PointXYZ pt;
-    std::cout << "===== Extracting data at depth " << depth << "... " << std::flush;
+    //std::cout << "===== Extracting data at depth " << depth << "... " << std::flush;
     double start = pcl::getTime ();
 
     for (tree_it = octree.begin(depth); tree_it!=tree_it_end; ++tree_it)
