@@ -59,16 +59,24 @@
 class OctreeViewer
 {
 public:
-  OctreeViewer (std::string &filename, double resolution) :
-    viz ("Octree visualizator"), cloud (new pcl::PointCloud<pcl::PointXYZ>()),
+  OctreeViewer (pcl::PointCloud<pcl::PointXYZ>::Ptr point_colud, double resolution) :
+    viz ("Octree visualizator"), cloud (point_colud),
         displayCloud (new pcl::PointCloud<pcl::PointXYZ>()), octree (resolution), displayCubes(false),
         showPointsWithCubes (false), wireframe (true)
   {
 
     //try to load the cloud
-    if (!loadCloud(filename))
-      return;
+    //if (!loadCloud(filename))
+     // return;
 
+	octree.setInputCloud(cloud);
+    //update bounding box automatically
+    octree.defineBoundingBox();
+    //add points in the tree
+    octree.addPointsFromInputCloud();
+
+	
+	//viz.initCameraParameters();
     //register keyboard callbacks
     viz.registerKeyboardCallback(&OctreeViewer::keyboardEventOccurred, *this, 0);
 
@@ -91,6 +99,7 @@ public:
     //reset camera
     viz.resetCameraViewpoint("cloud");
 
+	//viz.addCoordinateSystem(1.0);
     //run main loop
     run();
 

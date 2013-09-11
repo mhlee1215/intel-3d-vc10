@@ -887,23 +887,23 @@ int wmain(int argc, WCHAR* argv[]) {
         }
 		else{
 			//printf("aaa");
-			pcl::PointCloud<pcl::PointXYZRGBA>::Ptr color_voxel_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);	
+			pcl::PointCloud<pcl::PointXYZ>::Ptr color_voxel_cloud (new pcl::PointCloud<pcl::PointXYZ>);	
 			for(int i = 0 ; i < 1000 ; i+=50){
 				for(int j = 0 ; j < 1000 ; j+=50){
 					for(int k = 0 ; k < 1000 ; k+=50){
-						pcl::PointXYZRGBA p;
-						p.x = i / 1000.0;
-						p.y = j / 1000.0;
-						p.z = k / 1000.0;
-						p.r = (i/1000.0) * 255;
-						p.g = (j/1000.0) * 255;
-						p.b = (k/1000.0) * 255;
+						pcl::PointXYZ p;
+						p.x = i / 10000.0;
+						p.y = j / 10000.0;
+						p.z = k / 10000.0;
+						//p.r = (i/1000.0) * 255;
+						//p.g = (j/1000.0) * 255;
+						//p.b = (k/1000.0) * 255;
 						color_voxel_cloud->push_back(p);
 					}
 				}
 			}
-			world_coord_octree.setInputCloud(color_voxel_cloud);
-			world_coord_octree.addPointsFromInputCloud();
+			//world_coord_octree.setInputCloud(color_voxel_cloud);
+			//world_coord_octree.addPointsFromInputCloud();
 
 			
 			
@@ -918,15 +918,15 @@ int wmain(int argc, WCHAR* argv[]) {
 
 			std::vector<pcl::PointXYZRGBA> pointGrid;
 			//world_coord_octree.getOccupiedVoxelCenters (pointGrid);
-			
+			 
 			
 			scene_viewer->removePointCloud ( "voxel_coloring_cloud" , vp_3);
 			scene_viewer->addPointCloud (color_voxel_cloud, "voxel_coloring_cloud", vp_3);
 			scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "voxel_coloring_cloud");
 			scene_viewer->spinOnce();
 			
-			std::string a;
-			OctreeViewer v(a, 0.001);
+			
+			OctreeViewer v(color_voxel_cloud, 0.001);
 			
 		}
 		
