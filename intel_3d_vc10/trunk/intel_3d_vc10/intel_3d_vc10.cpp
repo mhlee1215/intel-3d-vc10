@@ -48,7 +48,7 @@ enum { DETECTION = 0, CAPTURING = 1, CALIBRATED = 2 };
 const int VOXEL_DIM = 120;
 const int VOXEL_SIZE = VOXEL_DIM*VOXEL_DIM*VOXEL_DIM;
 const int VOXEL_SLICE = VOXEL_DIM*VOXEL_DIM;
-const int distance_threshold = 7000;
+const int distance_threshold =10000;
 
 
 
@@ -130,8 +130,7 @@ int wmain(int argc, WCHAR* argv[]) {
         return -1;
     }
 
-    vector<vector<cv::Point2f> > imagePoints;
-    
+       
 
     cv::Size imageSize;
     int mode = s.inputType == Settings::IMAGE_LIST ? CAPTURING : DETECTION;
@@ -201,20 +200,34 @@ int wmain(int argc, WCHAR* argv[]) {
 
 	//CvPoint2D32f* pointBuf = new CvPoint2D32f[ 100 ];
 	vector<cv::Point2f> pointBuf2;
+	vector<cv::Point2f> pointBuf_all;
+
 	int corner_count;
 	vector<vector<cv::Point2f> > points_vec;
 
 	setInitialFrameLocation(renders);
 	
-	boost::shared_ptr<pcl::visualization::PCLVisualizer> scene_viewer (new pcl::visualization::PCLVisualizer ("Coordination Viewer"));
+	pcl::visualization::PCLVisualizer* scene_visualizer = new pcl::visualization::PCLVisualizer ("Coordination Viewer");
+	scene_visualizer->setPosition(350, 530);
+	boost::shared_ptr<pcl::visualization::PCLVisualizer> scene_viewer (scene_visualizer);
 	scene_viewer->initCameraParameters ();
-	int vp_1(1), vp_2(1);
-	scene_viewer->createViewPort (0.0, 0, 0.5, 1.0, vp_1);
+	scene_viewer->setSize(1500, 430);
+	int vp_1(1), vp_2(1), vp_3(1);
+	int vp_num = 3;
+	scene_viewer->createViewPort (0.0, 0.0, 1.0/vp_num, 1.0, vp_1);
 	scene_viewer->setBackgroundColor(0, 0, 0, vp_1);
-	scene_viewer->addText ("Camera Coordination", 10, 10, "v1 text", vp_1);
+	scene_viewer->addText ("Camera Coordination", 10, 10, 20, 1.0, 1.0, 1.0, "v1 title", vp_1);
+	scene_viewer->addText ("Intrinsic Parameter -", 10, 50, 10, 1.0, 1.0, 1.0, "v1 intrinsic", vp_1);
+	scene_viewer->setCameraPosition(2, 2, -2, 0, 0, 0, vp_1);
 
-	scene_viewer->createViewPort (0.5, 0, 1.0, 1.0, vp_2);
+	scene_viewer->createViewPort (1.0/vp_num, 0, 2*1.0/vp_num, 1.0, vp_2);
 	scene_viewer->setBackgroundColor(0.2, 0.2, 0.2, vp_2);
+	scene_viewer->addText ("World Coordination", 10, 10, 20, 1.0, 1.0, 1.0, "v2 title", vp_2);
+	scene_viewer->addText ("Camera Position - ", 10, 30, 15, 1.0, 1.0, 1.0, "v2 camera position", vp_2);
+
+	scene_viewer->createViewPort (2*1.0/vp_num, 0, 1.0, 1.0, vp_3);
+	scene_viewer->setBackgroundColor(0, 0, 0, vp_3);
+	scene_viewer->addText ("Voxel Coloring result", 10, 10, 20, 1.0, 1.0, 1.0, "v3 title", vp_3);
 	
 
 	//scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud1");
@@ -225,9 +238,6 @@ int wmain(int argc, WCHAR* argv[]) {
 
 	//pcl::visualization::PCLVisualizer camera_position_viewer ("Camera position");
 	
-	vector<cv::Point3f> objectPoints;
-    calcBoardCornerPositions(s.boardSize, s.squareSize, objectPoints, s.calibrationPattern);
-
 	vector<cv::Point3f> obj_pnts;
 	int x_min = -2000;
 	int x_max = 2000;
@@ -248,11 +258,24 @@ int wmain(int argc, WCHAR* argv[]) {
 		}
 
 	
+	
+	pcl::octree::OctreePointCloud<pcl::PointXYZRGBA> world_coord_octree (1.0f/scene_scale_factor);
+	bool do_carving = false;
+	vector<vector<cv::Point2f> > imagePoints;
+	vector<cv::Point3f> objectPoints;
+	calcBoardCornerPositions(s.boardSize, s.squareSize, objectPoints, s.calibrationPattern);
+
+	vector<cv::Point3f> objectPoints_all;
+	
 	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr worldCoord_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);	
 	for (int f=0;;f++, Sleep(5)) { 
+		
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cameraCoord_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
 		
-	
+		
+		//world_coord_octree.add
+
+
 	
 		PXCSmartArray<PXCImage> images(3); 
 		PXCSmartArray<PXCImage> images_modified(3); 
@@ -366,13 +389,12 @@ int wmain(int argc, WCHAR* argv[]) {
 		/////// Processing for images from PCSDK - end
 		///////////////////////////////////////////////////////////////////////////////////////
 
-		bool found;
-        found = cv::findChessboardCorners(image_gray, s.boardSize, pointBuf2, CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FAST_CHECK | CV_CALIB_CB_NORMALIZE_IMAGE);
+		bool found = false;
+        //found = cv::findChessboardCorners(image_gray, s.boardSize, pointBuf2, CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FAST_CHECK | CV_CALIB_CB_NORMALIZE_IMAGE);
 		
 		//If chessboard is found,
-		if ( found)              
+		if (found)              
         {
-			
 			// improve the found corners' coordinate accuracy for chessboard
             if( s.calibrationPattern == Settings::CHESSBOARD)
             {
@@ -381,554 +403,532 @@ int wmain(int argc, WCHAR* argv[]) {
                 cornerSubPix( image_gray, pointBuf2, cv::Size(11,11),
                     cv::Size(-1,-1), cv::TermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 30, 0.1 ));
             }
+			objectPoints_all.insert(objectPoints_all.end(), objectPoints.begin(), objectPoints.end());
+			
+			imagePoints.push_back(pointBuf2);
+			pointBuf_all.insert(pointBuf_all.end(), pointBuf2.begin(), pointBuf2.end());
 
 			//points_vec.push_back(pointBuf2);
             // Draw the corners.
 			drawChessboardCorners( image, s.boardSize, pointBuf2,  found );
 
 			//Set chessboard edge positions. (0,0 0,20 20,20 ... )
-			vector<cv::Point3f> objectPoints;
-			calcBoardCornerPositions(s.boardSize, s.squareSize, objectPoints, s.calibrationPattern);
-
-			cv::Mat cameraMatrix, distCoeffs, cameraMatrix_inv;
-			 cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
-			if( s.flag & CV_CALIB_FIX_ASPECT_RATIO )
-				cameraMatrix.at<double>(0,0) = 1.0;
-
-			distCoeffs = cv::Mat::zeros(8, 1, CV_64F);
-
-			vector<cv::Mat> rvec, tvec;
-			vector<float> reprojErrs;
-			double totalAvgErr = 0;
-
-			cv::Mat img_pnt_Mat(pointBuf2);
-			CvMat img_pnt_cvMat = img_pnt_Mat;
-			cv::Mat obj_pnt_Mat(objectPoints);
-			CvMat obj_pnt_cvMat = obj_pnt_Mat;
-			CvMat* rvecs = cvCreateMat( 1, 3, CV_64F);
-			CvMat* tvecs  = cvCreateMat( 1, 3, CV_64F);
-
-			cv::Mat rvecs_mat;
-			cv::Mat tvecs_mat;
-
-			CvMat cameraMatrix_cvmat = cameraMatrix;
-			CvMat distCoeffs_cvmat = distCoeffs;
-
-			CvMat* point_count = cvCreateMat(1, 1, CV_32S);
-			cvSetReal2D(point_count, 0, 0, pointBuf2.size());
-			//bool ok = runCalibration(s,cv::Size(640, 480), cameraMatrix, distCoeffs, points_vec, rvec, tvec, reprojErrs, totalAvgErr);
 			
-			double rms = cvCalibrateCamera2(&obj_pnt_cvMat, &img_pnt_cvMat, point_count, cvSize(640, 480), &cameraMatrix_cvmat, &distCoeffs_cvmat, rvecs, tvecs, s.flag|CV_CALIB_FIX_K4|CV_CALIB_FIX_K5 );
-			bool ok = checkRange(cameraMatrix) && checkRange(distCoeffs);
 			
-			//If calibration ok, 
-			if(ok){
-				cameraMatrix_inv = cameraMatrix.inv();
+
+			cv::Mat img_pnt_Mat2(pointBuf_all);
+
+			//printf("%d < %d, %d....%d, %d\n", imagePoints.size(), img_pnt_Mat2.rows, img_pnt_Mat2.cols, pointBuf_all.size(), objectPoints_all.size());
+
+			if(imagePoints.size() > 10){
+				cv::Mat cameraMatrix, distCoeffs, cameraMatrix_inv;
+				 cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
+				if( s.flag & CV_CALIB_FIX_ASPECT_RATIO )
+					cameraMatrix.at<double>(0,0) = 1.0;
+
+				distCoeffs = cv::Mat::zeros(8, 1, CV_64F);
+
+				vector<cv::Mat> rvec, tvec;
+				vector<float> reprojErrs;
+				double totalAvgErr = 0;
+
+				cv::Mat img_pnt_Mat(pointBuf_all);
+
+				CvMat img_pnt_cvMat = img_pnt_Mat;
+				cv::Mat obj_pnt_Mat(objectPoints_all);
+				CvMat obj_pnt_cvMat = obj_pnt_Mat;
+				CvMat* rvecs = cvCreateMat( 1, 3, CV_64F);
+				CvMat* tvecs  = cvCreateMat( 1, 3, CV_64F);
+
+				cv::Mat rvecs_mat;
+				cv::Mat tvecs_mat;
+
+				CvMat cameraMatrix_cvmat = cameraMatrix;
+				CvMat distCoeffs_cvmat = distCoeffs;
+
+				CvMat* point_count = cvCreateMat(1, 1, CV_32S);
+				cvSetReal2D(point_count, 0, 0, pointBuf_all.size());
+				//bool ok = runCalibration(s,cv::Size(640, 480), cameraMatrix, distCoeffs, points_vec, rvec, tvec, reprojErrs, totalAvgErr);
 			
-				//cv::calibrateCamera(objectPoints, pointBuf2, cv::Size(640, 320), cameraMatrix, distCoeffs, rvecs_mat, tvecs_mat);
-				//Get camera position
-				/*CvScalar t1 = cvGet2D(tvecs, 0, 0);
-				CvScalar t2 = cvGet2D(tvecs, 1, 0);
-				CvScalar t3 = cvGet2D(tvecs, 2, 0);*/
+				double rms = cvCalibrateCamera2(&obj_pnt_cvMat, &img_pnt_cvMat, point_count, cvSize(640, 480), &cameraMatrix_cvmat, &distCoeffs_cvmat, rvecs, tvecs, s.flag|CV_CALIB_FIX_K4|CV_CALIB_FIX_K5 );
+				bool ok = checkRange(cameraMatrix) && checkRange(distCoeffs);
+			
+				imagePoints.clear();
+				pointBuf_all.clear();
+				objectPoints_all.clear();
+				//If calibration ok, 
+				if(ok){
+					cameraMatrix_inv = cameraMatrix.inv();
+			
+					//cv::calibrateCamera(objectPoints, pointBuf2, cv::Size(640, 320), cameraMatrix, distCoeffs, rvecs_mat, tvecs_mat);
+					//Get camera position
+					/*CvScalar t1 = cvGet2D(tvecs, 0, 0);
+					CvScalar t2 = cvGet2D(tvecs, 1, 0);
+					CvScalar t3 = cvGet2D(tvecs, 2, 0);*/
 
-				//cv::Mat objPoints = cv::Mat(cv::Mat(obj_pnts));
-				//CvMat objPoints2 = objPoints;
+					//cv::Mat objPoints = cv::Mat(cv::Mat(obj_pnts));
+					//CvMat objPoints2 = objPoints;
 
-				//CvMat rvecs2 = rvecs[i];
-				//CvMat tvecs2 = tvecs[i];
+					//CvMat rvecs2 = rvecs[i];
+					//CvMat tvecs2 = tvecs[i];
 
-				cv::Mat rvecs2 = rvecs;//rvec[0];
-				cv::Mat tvecs2 = tvecs;//tvec[0];
+					cv::Mat rvecs2 = rvecs;//rvec[0];
+					cv::Mat tvecs2 = tvecs;//tvec[0];
 
-				rvecs2.convertTo(rvecs2, CV_32F);
-				tvecs2.convertTo(tvecs2, CV_32F);
+					rvecs2.convertTo(rvecs2, CV_32F);
+					tvecs2.convertTo(tvecs2, CV_32F);
 
-				tvecs2 = tvecs2.t();
-				rvecs2 = rvecs2.t();
-				//cv::Mat rvces_32f;
-				//cv::Mat tvces_32f;
+					tvecs2 = tvecs2.t();
+					rvecs2 = rvecs2.t();
+					//cv::Mat rvces_32f;
+					//cv::Mat tvces_32f;
 				
 				
-				cv::Size size1 = rvecs2.size();
-				cv::Size size2 = tvecs2.size();
+					cv::Size size1 = rvecs2.size();
+					cv::Size size2 = tvecs2.size();
 
-				cv::Mat cameraMatrix_32f;
-				cv::Mat distCoeffs_32f;
+					cv::Mat cameraMatrix_32f;
+					cv::Mat distCoeffs_32f;
 
-				//cameraMatrix.convertTo(cameraMatrix_32f, CV_32FC1);
-				//distCoeffs.convertTo(distCoeffs_32f, CV_32FC1);
+					//cameraMatrix.convertTo(cameraMatrix_32f, CV_32FC1);
+					//distCoeffs.convertTo(distCoeffs_32f, CV_32FC1);
 				
-				CvMat camera_matrix2 = cameraMatrix;
-				CvMat distCoeffs2 = distCoeffs;
-				//cv::Mat pointMat = cv::Mat(imagePoints2);
-				CvMat* imagePoints22 = cvCreateMat(obj_pnts.size(),1,CV_32FC2);;
+					CvMat camera_matrix2 = cameraMatrix;
+					CvMat distCoeffs2 = distCoeffs;
+					//cv::Mat pointMat = cv::Mat(imagePoints2);
+					CvMat* imagePoints22 = cvCreateMat(obj_pnts.size(),1,CV_32FC2);;
 					
-				cv::Mat rot;
-				Rodrigues(rvecs2, rot);
-				cv::Mat extMat_3;
-				cv::hconcat(rot, tvecs2, extMat_3);
-				cv::Mat b_row(1, 4, CV_32F);
-				b_row.at<float>(cv::Point(0, 0)) = 0;
-				b_row.at<float>(cv::Point(1, 0)) = 0;
-				b_row.at<float>(cv::Point(2, 0)) = 0;
-				b_row.at<float>(cv::Point(3, 0)) = 1;
+					cv::Mat rot;
+					Rodrigues(rvecs2, rot);
+					cv::Mat extMat_3;
+					cv::hconcat(rot, tvecs2, extMat_3);
+					cv::Mat b_row(1, 4, CV_32F);
+					b_row.at<float>(cv::Point(0, 0)) = 0;
+					b_row.at<float>(cv::Point(1, 0)) = 0;
+					b_row.at<float>(cv::Point(2, 0)) = 0;
+					b_row.at<float>(cv::Point(3, 0)) = 1;
 
-				cv::Mat extMat;
-				cv::vconcat(extMat_3, b_row, extMat);
-				cv::Mat extMatInv = extMat.inv();
+					cv::Mat extMat;
+					cv::vconcat(extMat_3, b_row, extMat);
+					cv::Mat extMatInv = extMat.inv();
 			
-				/*printf("Intrinsic Matrix\n");
-				for(int i = 0 ; i < 3 ; i++){
-					for(int j = 0 ; j < 3 ; j++){
-						printf("%f\t", cameraMatrix.at<double>(i, j));
+					char text_tmp[100];
+					sprintf(text_tmp, "Intrinsic Parameter - Fx: %.2f, Fy: %.2f", cameraMatrix.at<double>(0, 0), cameraMatrix.at<double>(1, 1));
+					std::string str_intrinsic_param = text_tmp;
+				
+					scene_viewer->updateText(str_intrinsic_param, 10, 30, 15, 1.0, 1.0, 1.0,  "v1 intrinsic");
+					/*printf("Intrinsic Matrix\n");
+					for(int i = 0 ; i < 3 ; i++){
+						for(int j = 0 ; j < 3 ; j++){
+							printf("%f\t", cameraMatrix.at<double>(i, j));
+						}
+						printf("\n");
 					}
 					printf("\n");
-				}
-				printf("\n");
-				printf("extrinsic Matrix\n");
-				printf("%d, %d\n", extMat.size().height, extMat.size().width);
-				for(int i = 0 ; i < 4 ; i++){
-					for(int j = 0 ; j < 4 ; j++){
-						printf("%f\t", extMat.at<float>(i, j));
+					printf("extrinsic Matrix\n");
+					printf("%d, %d\n", extMat.size().height, extMat.size().width);
+					for(int i = 0 ; i < 4 ; i++){
+						for(int j = 0 ; j < 4 ; j++){
+							printf("%f\t", extMat.at<float>(i, j));
+						}
+						printf("\n");
 					}
 					printf("\n");
-				}
-				printf("\n");
-				printf("extrinsic Matrix inverse\n");
-				printf("%d, %d\n", extMatInv.size().height, extMatInv.size().width);
-				for(int i = 0 ; i < 4 ; i++){
-					for(int j = 0 ; j < 4 ; j++){
-						printf("%f\t", extMatInv.at<float>(i, j));
+					printf("extrinsic Matrix inverse\n");
+					printf("%d, %d\n", extMatInv.size().height, extMatInv.size().width);
+					for(int i = 0 ; i < 4 ; i++){
+						for(int j = 0 ; j < 4 ; j++){
+							printf("%f\t", extMatInv.at<float>(i, j));
+						}
+						printf("\n");
 					}
-					printf("\n");
-				}
-				printf("\n");*/
+					printf("\n");*/
 
-				//printf("%f, %f, %f\n", t1.val[0], t2.val[0], t3.val[0]);
+					//printf("%f, %f, %f\n", t1.val[0], t2.val[0], t3.val[0]);
 
 			
-				pcl::PointXYZRGBA p_prev;
+					pcl::PointXYZRGBA p_prev;
 
-				const int line_max = 7;
-				static const CvScalar line_colors[line_max] =
-				{
-					{{0,0,255}},
-					{{0,128,255}},
-					{{0,200,200}},
-					{{0,255,0}},
-					{{200,200,0}},
-					{{255,0,0}},
-					{{255,0,255}}
-				};
+					const int line_max = 7;
+					static const CvScalar line_colors[line_max] =
+					{
+						{{0,0,255}},
+						{{0,128,255}},
+						{{0,200,200}},
+						{{0,255,0}},
+						{{200,200,0}},
+						{{255,0,0}},
+						{{255,0,255}}
+					};
 
-				//Draw object poinsts = chessboard features.
-				for(int i = 0 ; i < objectPoints.size() ; i++){
-					cv::Point3f objPoint = objectPoints[i];
-
-				
-
-					pcl::PointXYZRGBA p;
-					//Scaling ( mm to m) , 
-					p.x = objPoint.x/scene_scale_factor;
-					p.y = objPoint.y/scene_scale_factor;
-					p.z = objPoint.z/scene_scale_factor;
-
-					int y = floor(i/9.0);
-					CvScalar color = line_colors[y % line_max];
-					p.r = color.val[0];
-					p.g = color.val[1];
-					p.b = color.val[2];
-					worldCoord_cloud->push_back(p);
-
-					if(i > 0){
-						char line_id_char[200];
-						sprintf(line_id_char, "line_id_%d_%d_%d_to_%d_%d_%d", p.x, p.y, p.z, p_prev.x, p_prev.y, p_prev.z);
-						std::string line_id = line_id_char;
-						
-						//camera_position_viewer.addLine<pcl::PointXYZRGBA, pcl::PointXYZRGBA>(p, p_prev, line_id);
-						//camera_position_viewer.spinOnce();
-						//camera_position_viewer.removePointCloud(line_id);
-					}
-
-					p_prev = p;
-
-					cv::Mat pos(4, 1, CV_32FC1);
-					pos.at<float>(0, 0) = objPoint.x;//
-					pos.at<float>(1, 0) = objPoint.y;
-					pos.at<float>(2, 0) = objPoint.z;
-					pos.at<float>(3, 0) = 1;
-
-					cv::Mat conv_pos = extMat*pos;
-					
-
-					pcl::PointXYZRGBA p1;				
-					p1.x = conv_pos.at<float>(0, 0);///conv_pos.at<float>(2, 0);
-					p1.y = conv_pos.at<float>(1, 0);///conv_pos.at<float>(2, 0);
-					p1.z = conv_pos.at<float>(2, 0);///conv_pos.at<float>(2, 0);
-
-					//printf("%f, %f, %f\n", conv_pos.at<float>(0, 0), conv_pos.at<float>(1, 0), conv_pos.at<float>(2, 0));
-
-					p1.x /= scene_scale_factor;
-					p1.y /= scene_scale_factor;
-					p1.z /= scene_scale_factor;
-
-					p1.r = 230;//color.val[0];
-					p1.g = 230;//color.val[1];
-					p1.b = 100;//color.val[2];
-					cameraCoord_cloud->push_back(p1);
-
-
-					cv::Mat conv_pos2(3, 1, CV_64FC1);
-					conv_pos2.at<double>(0, 0) = conv_pos.at<float>(0, 0);
-					conv_pos2.at<double>(1, 0) = conv_pos.at<float>(1, 0);
-					conv_pos2.at<double>(2, 0) = conv_pos.at<float>(2, 0);
-				
-					cv::Mat conv_pos_img = cameraMatrix*conv_pos2;
-					double reproject_z = conv_pos_img.at<double>(2, 0);
-					double reproject_x = conv_pos_img.at<double>(0, 0);
-					double reproject_y = conv_pos_img.at<double>(1, 0);
-
-					//Add distortion matrix computation.
-
-					//printf("%f, %f, %f\n", reproject_x, reproject_y, reproject_z);
-
-					reproject_x /= (reproject_z);
-					reproject_y /= (reproject_z);
-				
-					cv::circle(image, cv::Point(reproject_x, reproject_y), 2, cv::Scalar(color.val[2], color.val[1], color.val[0]), 2);
-
-
-					cv::Mat pos_img(3, 1, CV_64FC1);
-					pos_img.at<double>(0, 0) = reproject_x;
-					pos_img.at<double>(1, 0) = reproject_y;
-					pos_img.at<double>(2, 0) = 1;
-					cv::Mat conv_pos_camera = cameraMatrix_inv*pos_img;
-					pcl::PointXYZRGBA p2;				
+					//Draw object poinsts = chessboard features.
+					for(int i = 0 ; i < objectPoints.size() ; i++){
+						cv::Point3f objPoint = objectPoints[i];
 
 				
-					p2.z = conv_pos.at<float>(2, 0);//conv_pos_camera.at<double>(2, 0);///scene_scale_factor;
-					//1120
-					//1650
-					//printf("z : %f\n", p2.z);
-					p2.x = conv_pos_camera.at<double>(0, 0) * p2.z;///scene_scale_factor;
-					p2.y = conv_pos_camera.at<double>(1, 0) * p2.z;///scene_scale_factor;
-
-					p2.x /= scene_scale_factor;
-					p2.y /= scene_scale_factor;
-					p2.z /= scene_scale_factor;
-
-
-					p2.r = 230;//color.val[0];
-					p2.g = 100;//color.val[1];
-					p2.b = 230;//color.val[2];
-					cameraCoord_cloud->push_back(p2);
-
-				}
-
-				/*pcl::PointXYZRGBA p;
-				p.x = t1.val[0]/scene_scale_factor;
-				p.y = t2.val[0]/scene_scale_factor;
-				p.z = t3.val[0]/scene_scale_factor;
-				p.r = 255;
-				p.b = 0;
-				p.g = 0;
-				worldCoord_cloud->push_back(p);*/
-
-				
-				
-
-				//camera_position_viewer.addPointCloud (worldCoord_cloud, "worldCoord_cloud");
-				//camera_position_viewer.spinOnce();
-				//camera_position_viewer.removePointCloud("worldCoord_cloud");
-
-				/*for (int y=0;y<(int)pinfo2.imageInfo.height;y++) { 
-					for (int x=0;x<(int)pinfo2.imageInfo.width;x++) { 
-						cv::Mat locMat(3, 1, CV_64FC1);
-						
-						locMat.at<double>(0,0) = x;
-						locMat.at<double>(1,0) = y;
-						locMat.at<double>(2,0) = 1;
-
-						cv::Mat conv_locMat = cameraMatrix_inv * locMat;
 
 						pcl::PointXYZRGBA p;
-						p.x = conv_locMat.at<double>(0,0);///scene_scale_factor;
-						p.y = conv_locMat.at<double>(1,0);///scene_scale_factor;
-						p.z = conv_locMat.at<double>(2,0);///scene_scale_factor;
-						printf("%f, %f, %f\n", p.x, p.y, p.z);
+						//Scaling ( mm to m) , 
+						p.x = objPoint.x/scene_scale_factor;
+						p.y = objPoint.y/scene_scale_factor;
+						p.z = objPoint.z/scene_scale_factor;
 
-						cv::Vec4b colorValue = image.at<cv::Vec4b>(y, x);
-						p.r = colorValue.val[2];
-						p.g = colorValue.val[1];
-						p.b = colorValue.val[0];
+						int y = floor(i/9.0);
+						CvScalar color = line_colors[y % line_max];
+						p.r = color.val[0];
+						p.g = color.val[1];
+						p.b = color.val[2];
 						worldCoord_cloud->push_back(p);
-					}
-				}*/
 
-				
-
-			
-			
-
-				char text_tmp[100];
-				sprintf(text_tmp, "World Coordination, Current Camera Position: x:%.2f, y:%.2f, z:%.2f", extMat.at<float>(0, 3), extMat.at<float>(1, 3), extMat.at<float>(2, 3));
-				std::string str_cam_pos = text_tmp;
-				scene_viewer->addText (str_cam_pos, 10, 10, "v2 text", vp_2);
-
-				//float *uvmap=(float*)data1.planes[2]; 
-			
-				//Mark Camera Position.
-				//Origin
-				cv::Mat pos_origin(4, 1, CV_32F);
-				pos_origin.at<float>(0, 0) = 0;
-				pos_origin.at<float>(1, 0) = 0;
-				pos_origin.at<float>(2, 0) = 0;
-				pos_origin.at<float>(3, 0) = 1;
-				//camera_posiion_in_world_coordination = (M_ext)^-1 * origin
-				cv::Mat conv_pos_origin = extMatInv*pos_origin;
-				pcl::PointXYZRGBA p_origin;		
-				p_origin.x = conv_pos_origin.at<float>(0, 0)/scene_scale_factor;
-				p_origin.y = conv_pos_origin.at<float>(1, 0)/scene_scale_factor;
-				p_origin.z = conv_pos_origin.at<float>(2, 0)/scene_scale_factor;
-				p_origin.r = 255;
-				p_origin.g = 120;
-				p_origin.b = 120;
-				worldCoord_cloud->push_back(p_origin);
-
-
-			
-
-				for (int y=0;y<(int)pinfo2.imageInfo.height;y++) { 
-					for (int x=0;x<(int)pinfo2.imageInfo.width;x++) { 
-
-						int vert_idx = 3*(y*pinfo2.imageInfo.width+x);
-						int xx=(int)(uvmap[(y*pinfo2.imageInfo.width+x)*2+0] *pinfo1.imageInfo.width+0.5); 
-						int yy=(int)(uvmap[(y*pinfo2.imageInfo.width+x)*2+1] *pinfo1.imageInfo.height+0.5); 
-						int ux = CALIBRATION_UX;
-						int uy = CALIBRATION_UY;
-						float px = CALIBRATION_PX;
+						if(i > 0){
+							char line_id_char[200];
+							sprintf(line_id_char, "line_id_%d_%d_%d_to_%d_%d_%d", p.x, p.y, p.z, p_prev.x, p_prev.y, p_prev.z);
+							std::string line_id = line_id_char;
 						
-						short depth_value = depthImage.at<short>(y, x);
-						//Set depth threshold 1000 = 1 meter
-						if(depth_value > distance_threshold) continue;
-						//printf("%f, %d, %f\n", px, depth_value, px / depth_value);
-						xx = xx + ux + px / depth_value;
-						yy = yy + uy;
+							//camera_position_viewer.addLine<pcl::PointXYZRGBA, pcl::PointXYZRGBA>(p, p_prev, line_id);
+							//camera_position_viewer.spinOnce();
+							//camera_position_viewer.removePointCloud(line_id);
+						}
 
-						//If matched point over the image boundary, then throw away.
-						if (xx<0 || xx>=(int)pinfo1.imageInfo.width-1 || yy<0 || yy>= (int)pinfo1.imageInfo.height-1) continue;
+						p_prev = p;
 
-						//Get camera coordination with depth = 1
-						cv::Mat pos_img(3, 1, CV_64FC1);
-						pos_img.at<double>(0, 0) = xx;
-						pos_img.at<double>(1, 0) = yy;
-						pos_img.at<double>(2, 0) = 1;
-						cv::Mat conv_pos_camera = cameraMatrix_inv*pos_img;
-
-						double c_coord_x = conv_pos_camera.at<double>(0, 0);///scene_scale_factor;
-						double c_coord_y = conv_pos_camera.at<double>(1, 0);///scene_scale_factor;
-						double c_coord_z = conv_pos_camera.at<double>(2, 0);///scene_scale_factor;
-
-						c_coord_z *= depth_value*1;//vertidex[vert_idx+2];
-						c_coord_x *= c_coord_z;
-						c_coord_y *= c_coord_z;
-
-						/*double distance_o_to_xy = sqrt((double)1*1+xx*xx+yy*yy);
-						double scale = distance_o_to_xy / depth_value;
-													
-						double c_coord_x_c = xx * scale;
-						double c_coord_y_c = yy * scale;
-						double c_coord_z_c = 1 * scale;*/
-
-						pcl::PointXYZRGBA p2;				
-						p2.x = c_coord_x/scene_scale_factor;
-						p2.y = c_coord_y/scene_scale_factor;
-						p2.z = c_coord_z/scene_scale_factor;
-
-						cv::Vec4b colorValue = image.at<cv::Vec4b>(yy, xx);
-						p2.r = colorValue.val[2];
-						p2.g = colorValue.val[1];
-						p2.b = colorValue.val[0];
-						cameraCoord_cloud->push_back(p2);
-
-						/*int xx_max = xx+1;
-						int yy_max = yy+1;
-
-						for(int xx_t = xx ; xx_t < xx_max ; xx_t++){
-							for(int yy_t = yy ; yy_t < yy_max ; yy_t++){
-
-							}
-						}*/
-
-						//cv::Mat pos_img(3, 1, CV_64FC1);
-						//pos_img.at<double>(0, 0) = x;
-						//pos_img.at<double>(1, 0) = y;
-						//pos_img.at<double>(2, 0) = 1;
-
-						//cv::Mat conv_pos_img = cameraMatrix_inv*pos_img;
-						//pcl::PointXYZRGBA p_img_c_coord;		
-						//p_img_c_coord.x = pos_img.at<double>(0, 0);///scene_scale_factor;
-						//p_img_c_coord.y = pos_img.at<double>(1, 0);///scene_scale_factor;
-						//p_img_c_coord.z = pos_img.at<double>(2, 0);///scene_scale_factor;
-						//cv::Vec4b colorValue = image.at<cv::Vec4b>(y, x);
-
-						//p_img_c_coord.r = colorValue.val[2];
-						//p_img_c_coord.g = colorValue.val[1];
-						//p_img_c_coord.b = colorValue.val[0];
-
-						///*p_img_c_coord.r = 120;
-						//p_img_c_coord.g = 255;
-						//p_img_c_coord.b = 120;*/
-						//cameraCoord_cloud->push_back(p_img_c_coord);
-
-
-
-
-						cv::Mat pos(4, 1, CV_32F);
-						pos.at<float>(0, 0) = c_coord_x;//*scene_scale_factor;//vertidex[vert_idx];
-						pos.at<float>(1, 0) = c_coord_y;//*scene_scale_factor;//vertidex[vert_idx+1];
-						pos.at<float>(2, 0) = c_coord_z;//vertidex[vert_idx+2];///scene_scale_factor;//vertidex[vert_idx+2]; 
+						cv::Mat pos(4, 1, CV_32FC1);
+						pos.at<float>(0, 0) = objPoint.x;//
+						pos.at<float>(1, 0) = objPoint.y;
+						pos.at<float>(2, 0) = objPoint.z;
 						pos.at<float>(3, 0) = 1;
 
-						cv::Mat conv_pos = extMatInv*pos;
-						
+						cv::Mat conv_pos = extMat*pos;
+					
 
 						pcl::PointXYZRGBA p1;				
-						p1.x = conv_pos.at<float>(0, 0)/scene_scale_factor;
-						p1.y = conv_pos.at<float>(1, 0)/scene_scale_factor;
-						p1.z = conv_pos.at<float>(2, 0)/scene_scale_factor;
-						//printf("%f, %f, %f\n", p1.x, p1.y, p1.z);
-						
-						int color = ((pxcU32*)data2.planes[0])[yy*pinfo1.imageInfo.width+xx];
-							
-						//cv::Vec4b colorValue = image.at<cv::Vec4b>(yy, xx);
+						p1.x = conv_pos.at<float>(0, 0);///conv_pos.at<float>(2, 0);
+						p1.y = conv_pos.at<float>(1, 0);///conv_pos.at<float>(2, 0);
+						p1.z = conv_pos.at<float>(2, 0);///conv_pos.at<float>(2, 0);
 
-						p1.r = colorValue.val[2];
-						p1.g = colorValue.val[1];
-						p1.b = colorValue.val[0];
-						worldCoord_cloud->push_back(p1);
-						
-						
+						//printf("%f, %f, %f\n", conv_pos.at<float>(0, 0), conv_pos.at<float>(1, 0), conv_pos.at<float>(2, 0));
 
-					}
-				}
+						p1.x /= scene_scale_factor;
+						p1.y /= scene_scale_factor;
+						p1.z /= scene_scale_factor;
 
+						p1.r = 230;//color.val[0];
+						p1.g = 230;//color.val[1];
+						p1.b = 100;//color.val[2];
+						cameraCoord_cloud->push_back(p1);
+
+
+						cv::Mat conv_pos2(3, 1, CV_64FC1);
+						conv_pos2.at<double>(0, 0) = conv_pos.at<float>(0, 0);
+						conv_pos2.at<double>(1, 0) = conv_pos.at<float>(1, 0);
+						conv_pos2.at<double>(2, 0) = conv_pos.at<float>(2, 0);
+				
+						cv::Mat conv_pos_img = cameraMatrix*conv_pos2;
+						double reproject_z = conv_pos_img.at<double>(2, 0);
+						double reproject_x = conv_pos_img.at<double>(0, 0);
+						double reproject_y = conv_pos_img.at<double>(1, 0);
+
+						//Add distortion matrix computation.
+
+						//printf("%f, %f, %f\n", reproject_x, reproject_y, reproject_z);
+
+						reproject_x /= (reproject_z);
+						reproject_y /= (reproject_z);
+				
+						cv::circle(image, cv::Point(reproject_x, reproject_y), 2, cv::Scalar(color.val[2], color.val[1], color.val[0]), 2);
+
+
+						cv::Mat pos_img(3, 1, CV_64FC1);
+						pos_img.at<double>(0, 0) = reproject_x;
+						pos_img.at<double>(1, 0) = reproject_y;
+						pos_img.at<double>(2, 0) = 1;
+						cv::Mat conv_pos_camera = cameraMatrix_inv*pos_img;
+						pcl::PointXYZRGBA p2;				
 
 				
+						p2.z = conv_pos.at<float>(2, 0);//conv_pos_camera.at<double>(2, 0);///scene_scale_factor;
+						//1120
+						//1650
+						//printf("z : %f\n", p2.z);
+						p2.x = conv_pos_camera.at<double>(0, 0) * p2.z;///scene_scale_factor;
+						p2.y = conv_pos_camera.at<double>(1, 0) * p2.z;///scene_scale_factor;
+
+						p2.x /= scene_scale_factor;
+						p2.y /= scene_scale_factor;
+						p2.z /= scene_scale_factor;
+
+
+						p2.r = 230;//color.val[0];
+						p2.g = 100;//color.val[1];
+						p2.b = 230;//color.val[2];
+						cameraCoord_cloud->push_back(p2);
+
+					}
+
+					/*pcl::PointXYZRGBA p;
+					p.x = t1.val[0]/scene_scale_factor;
+					p.y = t2.val[0]/scene_scale_factor;
+					p.z = t3.val[0]/scene_scale_factor;
+					p.r = 255;
+					p.b = 0;
+					p.g = 0;
+					worldCoord_cloud->push_back(p);*/
+
+				
+				
+
+					//camera_position_viewer.addPointCloud (worldCoord_cloud, "worldCoord_cloud");
+					//camera_position_viewer.spinOnce();
+					//camera_position_viewer.removePointCloud("worldCoord_cloud");
+
+					/*for (int y=0;y<(int)pinfo2.imageInfo.height;y++) { 
+						for (int x=0;x<(int)pinfo2.imageInfo.width;x++) { 
+							cv::Mat locMat(3, 1, CV_64FC1);
+						
+							locMat.at<double>(0,0) = x;
+							locMat.at<double>(1,0) = y;
+							locMat.at<double>(2,0) = 1;
+
+							cv::Mat conv_locMat = cameraMatrix_inv * locMat;
+
+							pcl::PointXYZRGBA p;
+							p.x = conv_locMat.at<double>(0,0);///scene_scale_factor;
+							p.y = conv_locMat.at<double>(1,0);///scene_scale_factor;
+							p.z = conv_locMat.at<double>(2,0);///scene_scale_factor;
+							printf("%f, %f, %f\n", p.x, p.y, p.z);
+
+							cv::Vec4b colorValue = image.at<cv::Vec4b>(y, x);
+							p.r = colorValue.val[2];
+							p.g = colorValue.val[1];
+							p.b = colorValue.val[0];
+							worldCoord_cloud->push_back(p);
+						}
+					}*/
+
+				
+
+			
+			
+
+					//char text_tmp[100];
+					sprintf(text_tmp, "Camera Position - %.2f, %.2f, %.2f", extMat.at<float>(0, 3), extMat.at<float>(1, 3), extMat.at<float>(2, 3));
+					std::string str_cam_pos = text_tmp;
+				
+					scene_viewer->updateText(str_cam_pos, 10, 30, 15, 1.0, 1.0, 1.0,  "v2 camera position");
+				
+
+					//float *uvmap=(float*)data1.planes[2]; 
+			
+					//Mark Camera Position.
+					//Origin
+					cv::Mat pos_origin(4, 1, CV_32F);
+					pos_origin.at<float>(0, 0) = 0;
+					pos_origin.at<float>(1, 0) = 0;
+					pos_origin.at<float>(2, 0) = 0;
+					pos_origin.at<float>(3, 0) = 1;
+					//camera_posiion_in_world_coordination = (M_ext)^-1 * origin
+					cv::Mat conv_pos_origin = extMatInv*pos_origin;
+					pcl::PointXYZRGBA p_origin;		
+					p_origin.x = conv_pos_origin.at<float>(0, 0)/scene_scale_factor;
+					p_origin.y = conv_pos_origin.at<float>(1, 0)/scene_scale_factor;
+					p_origin.z = conv_pos_origin.at<float>(2, 0)/scene_scale_factor;
+					p_origin.r = 255;
+					p_origin.g = 120;
+					p_origin.b = 120;
+					worldCoord_cloud->push_back(p_origin);
+
+
+			
+
+					for (int y=0;y<(int)pinfo2.imageInfo.height;y++) { 
+						for (int x=0;x<(int)pinfo2.imageInfo.width;x++) { 
+
+							int vert_idx = 3*(y*pinfo2.imageInfo.width+x);
+							int xx=(int)(uvmap[(y*pinfo2.imageInfo.width+x)*2+0] *pinfo1.imageInfo.width+0.5); 
+							int yy=(int)(uvmap[(y*pinfo2.imageInfo.width+x)*2+1] *pinfo1.imageInfo.height+0.5); 
+							int ux = CALIBRATION_UX;
+							int uy = CALIBRATION_UY;
+							float px = CALIBRATION_PX;
+						
+							short depth_value = depthImage.at<short>(y, x);
+							//Set depth threshold 1000 = 1 meter
+							if(depth_value > distance_threshold) continue;
+							//printf("%f, %d, %f\n", px, depth_value, px / depth_value);
+							xx = xx + ux + px / depth_value;
+							yy = yy + uy;
+
+							//If matched point over the image boundary, then throw away.
+							if (xx<0 || xx>=(int)pinfo1.imageInfo.width-1 || yy<0 || yy>= (int)pinfo1.imageInfo.height-1) continue;
+
+							//Get camera coordination with depth = 1
+							cv::Mat pos_img(3, 1, CV_64FC1);
+							pos_img.at<double>(0, 0) = xx;
+							pos_img.at<double>(1, 0) = yy;
+							pos_img.at<double>(2, 0) = 1;
+							cv::Mat conv_pos_camera = cameraMatrix_inv*pos_img;
+
+							double c_coord_x = conv_pos_camera.at<double>(0, 0);///scene_scale_factor;
+							double c_coord_y = conv_pos_camera.at<double>(1, 0);///scene_scale_factor;
+							double c_coord_z = conv_pos_camera.at<double>(2, 0);///scene_scale_factor;
+
+							c_coord_z *= depth_value*1;//vertidex[vert_idx+2];
+							c_coord_x *= c_coord_z;
+							c_coord_y *= c_coord_z;
+
+							/*double distance_o_to_xy = sqrt((double)1*1+xx*xx+yy*yy);
+							double scale = distance_o_to_xy / depth_value;
+													
+							double c_coord_x_c = xx * scale;
+							double c_coord_y_c = yy * scale;
+							double c_coord_z_c = 1 * scale;*/
+
+							pcl::PointXYZRGBA p2;				
+							p2.x = c_coord_x/scene_scale_factor;
+							p2.y = c_coord_y/scene_scale_factor;
+							p2.z = c_coord_z/scene_scale_factor;
+
+							cv::Vec4b colorValue = image.at<cv::Vec4b>(yy, xx);
+							p2.r = colorValue.val[2];
+							p2.g = colorValue.val[1];
+							p2.b = colorValue.val[0];
+							cameraCoord_cloud->push_back(p2);
+
+							/*int xx_max = xx+1;
+							int yy_max = yy+1;
+
+							for(int xx_t = xx ; xx_t < xx_max ; xx_t++){
+								for(int yy_t = yy ; yy_t < yy_max ; yy_t++){
+
+								}
+							}*/
+
+							//cv::Mat pos_img(3, 1, CV_64FC1);
+							//pos_img.at<double>(0, 0) = x;
+							//pos_img.at<double>(1, 0) = y;
+							//pos_img.at<double>(2, 0) = 1;
+
+							//cv::Mat conv_pos_img = cameraMatrix_inv*pos_img;
+							//pcl::PointXYZRGBA p_img_c_coord;		
+							//p_img_c_coord.x = pos_img.at<double>(0, 0);///scene_scale_factor;
+							//p_img_c_coord.y = pos_img.at<double>(1, 0);///scene_scale_factor;
+							//p_img_c_coord.z = pos_img.at<double>(2, 0);///scene_scale_factor;
+							//cv::Vec4b colorValue = image.at<cv::Vec4b>(y, x);
+
+							//p_img_c_coord.r = colorValue.val[2];
+							//p_img_c_coord.g = colorValue.val[1];
+							//p_img_c_coord.b = colorValue.val[0];
+
+							///*p_img_c_coord.r = 120;
+							//p_img_c_coord.g = 255;
+							//p_img_c_coord.b = 120;*/
+							//cameraCoord_cloud->push_back(p_img_c_coord);
+
+
+
+
+							cv::Mat pos(4, 1, CV_32F);
+							pos.at<float>(0, 0) = c_coord_x;//*scene_scale_factor;//vertidex[vert_idx];
+							pos.at<float>(1, 0) = c_coord_y;//*scene_scale_factor;//vertidex[vert_idx+1];
+							pos.at<float>(2, 0) = c_coord_z;//vertidex[vert_idx+2];///scene_scale_factor;//vertidex[vert_idx+2]; 
+							pos.at<float>(3, 0) = 1;
+
+							cv::Mat conv_pos = extMatInv*pos;
+						
+
+							pcl::PointXYZRGBA p1;				
+							p1.x = conv_pos.at<float>(0, 0)/scene_scale_factor;
+							p1.y = conv_pos.at<float>(1, 0)/scene_scale_factor;
+							p1.z = conv_pos.at<float>(2, 0)/scene_scale_factor;
+							//printf("%f, %f, %f\n", p1.x, p1.y, p1.z);
+						
+							int color = ((pxcU32*)data2.planes[0])[yy*pinfo1.imageInfo.width+xx];
+							
+							//cv::Vec4b colorValue = image.at<cv::Vec4b>(yy, xx);
+
+							p1.r = colorValue.val[2];
+							p1.g = colorValue.val[1];
+							p1.b = colorValue.val[0];
+							worldCoord_cloud->push_back(p1);
+						
+						
+
+						}
+					}
+
+					if(do_carving){
+						printf("do carving!\n");
+						world_coord_octree.setInputCloud(worldCoord_cloud);
+
+
+						do_carving = false;
+					}
+				
+
+					scene_viewer->removeText3D("v2 camera_pos", vp_2);
+					scene_viewer->removePointCloud("cameraCoord_cloud", vp_1);
+					scene_viewer->removePointCloud ( "worldCoord_cloud" , vp_2);
+
+					scene_viewer->addPointCloud (cameraCoord_cloud, "cameraCoord_cloud", vp_1);
+					scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cameraCoord_cloud");
+					scene_viewer->addPointCloud ( worldCoord_cloud, "worldCoord_cloud", vp_2);
+					scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "worldCoord_cloud");
+
+					
+					//world_coord_octree.get
+					
+
+
+
+					scene_viewer->spinOnce();
+					
+				}
 			}
         }
-		
-		
-		
-		//int step = 640*4*sizeof(uchar);
-		//colorimg = &IplImage(image);
-		//cvGetRawData(colorimg, &data2.planes[0], &step);		
-		//cvGetRawData(colorimg_features, &data3.planes[0], &step);		
+		else{
+			printf("aaa");
+			pcl::PointCloud<pcl::PointXYZRGBA>::Ptr color_voxel_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);	
+			for(int i = 0 ; i < 1000 ; i+=10){
+				for(int j = 0 ; j < 1000 ; j+=10){
+					for(int k = 0 ; k < 1000 ; k+=10){
+						pcl::PointXYZRGBA p;
+						p.x = i / 1000;
+						p.y = j / 1000;
+						p.z = k / 1000;
+						p.r = (i/1000.0) * 255;
+						p.g = (j/1000.0) * 255;
+						p.b = (k/1000.0) * 255;
+						color_voxel_cloud->push_back(p);
+					}
+				}
+			}
+			world_coord_octree.setInputCloud(color_voxel_cloud);
+			world_coord_octree.addPointsFromInputCloud();
 
-		//cv::imwrite("aa.bmp", depthImage);
+			scene_viewer->removePointCloud ( "voxel_coloring_cloud" , vp_3);
+
+			scene_viewer->addPointCloud (color_voxel_cloud, "voxel_coloring_cloud", vp_3);
+			scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "voxel_coloring_cloud");
+
+			scene_viewer->spinOnce();
+		}
 		
 		unsigned char *depth_val = (unsigned char*)(depthImage.data);
 		
 
 		if (renders[0]) { 
-			
-			
-			//images[2]->AcquireAccess(PXCImage::ACCESS_READ_WRITE, PXCImage::COLOR_FORMAT_RGB32,&data2); 
-			//float *uvmap=(float*)data1.planes[2]; 
-			//float *depthmap = (float*)data1.planes[0]; 
-			//short *vertidex = (short*)data5.planes[0];
-			
 			int n = 0;
 			for (int y=0;y<(int)pinfo2.imageInfo.height;y++) { 
 				for (int x=0;x<(int)pinfo2.imageInfo.width;x++) { 
-					
-					////Set UV Map in original distorted image.
-
-					//Get original UV map. It requires calibration.
-					//int xx=(int)(uvmap[(y*pinfo2.imageInfo.width+x)*2+0] *pinfo1.imageInfo.width+0.5); 
-					//int yy=(int)(uvmap[(y*pinfo2.imageInfo.width+x)*2+1] *pinfo1.imageInfo.height+0.5); 
-					//int idx = 3*(y*pinfo2.imageInfo.width+x);
-
-					////Calibration result from calibration tool set
-					//int ux = CALIBRATION_UX;
-					//int uy = CALIBRATION_UY;
-					//float px = CALIBRATION_PX;
-					//short depth_value = vertidex[idx+2];//depthImage.at<short>(y, x);
-					////printf("%f, %d, %f\n", px, depth_value, px / depth_value);
-					//xx = xx + ux + px / depth_value;
-					//yy = yy + uy;
-
 					cv::Vec2s loc1 = UVImage.at<cv::Vec2s>(y, x);
 					int xx = (int)loc1.val[0];
 					int yy = (int)loc1.val[1];
 					
 					int depth = dstImage.at<unsigned char>(y, x);
 					if (xx>=0 && xx<(int)pinfo1.imageInfo.width && yy>=0 && yy<(int)pinfo1.imageInfo.height && depth < 255) 
-						((pxcU32 *)data0.planes[0])[yy*pinfo1.imageInfo.width+xx] = 0x80FF0000; 
-
-
-					////Set UV Map in undistorted image.
-					//cv::Vec2s loc = UVImage_undistorted.at<cv::Vec2s>(y, x);
-					//int xx_u = (int)loc.val[0];
-					//int yy_u = (int)loc.val[1];
-
-					///*cv::Vec2s loc1 = UVImage.at<cv::Vec2s>(y, x);
-					//int xx_x = (int)loc1.val[0];
-					//int yy_x = (int)loc1.val[1];
-
-					//printf("%d, %d, /// %d, %d\n", xx_u, yy_u, xx_x, yy_x);*/
-
-					//if (xx_u>=0 && xx_u<(int)pinfo1.imageInfo.width && yy_u>=0 && yy_u<(int)pinfo1.imageInfo.height && depth < 255) {
-					//	cv::circle(image_undistorted, cv::Point(xx_u, yy_u), 1, cv::Scalar(0, 0, 255));
-					//	cv::circle(image_undistorted, cv::Point(xx, yy), 1, cv::Scalar(255, 0, 0));
-					//}
-
-					//float depth = vertidex[(y*pinfo2.imageInfo.width+x)];
-					//Visualizae 3D
-					//printf("%f\t", depth); 
-					//int detph_val = dstImage.at<(x, y);
-					//pcl::PointXYZRGBA p1;
-					////p1.x = x/scene_scale_factor;
-					////p1.y = y/scene_scale_factor;
-					////p1.z = depth/scene_scale_factor;//dstImage.at<unsigned char>(y, x);
-
-					//
-					//p1.x = vertidex[idx]/scene_scale_factor;
-					//p1.y = -vertidex[idx+1]/scene_scale_factor;
-					//p1.z = vertidex[idx+2]/scene_scale_factor;
-					//
-
-					//if(abs(p1.x) > 5 || abs(p1.y) > 5 || p1.z > 5 ) continue;
-					//if(idx == 0){
-					//	printf("%d, %d, %d\n", vertidex[idx], vertidex[idx+1], vertidex[idx+2]);
-					//}
-					//
-					//if (xx>=0 && xx<(int)pinfo1.imageInfo.width && yy>=0 && yy<(int)pinfo1.imageInfo.height) {
-					//	int color = ((pxcU32*)data2.planes[0])[yy*pinfo1.imageInfo.width+xx];
-					//	
-					//	cv::Vec4b colorValue = image.at<cv::Vec4b>(yy, xx);
-
-					//	p1.r = colorValue.val[2];
-					//	p1.g = colorValue.val[1];
-					//	p1.b = colorValue.val[0];
-					//	cameraCoord_cloud->push_back(p1);	
-					//}else{
-					//	//p1.r = 255;//((pxcU8*)data2.planes[0])[y*pinfo1.imageInfo.width+x];
-					//	//p1.g = 255;//((pxcU8*)data2.planes[0])[y*pinfo1.imageInfo.width+x+1];
-					//	//p1.b = 255;//((pxcU8*)data2.planes[0])[y*pinfo1.imageInfo.width+x+2];
-					//}
-
-					
-
-					
-				
+						((pxcU32 *)data0.planes[0])[yy*pinfo1.imageInfo.width+xx] = 0x80FF0000; 				
 				} 
 			} 
-
-			
-			
-
-			
+		
 
 			images[0]->ReleaseAccess(&data0); 
 			images[1]->ReleaseAccess(&data1); 
@@ -961,11 +961,13 @@ int wmain(int argc, WCHAR* argv[]) {
 			break; 
 		}
 		
+		/*
+		//Show unditorted image
 		if (!renders[3]->RenderFrame(images_modified[1])) { 
 			delete renders[3]; 
 			renders[3]=0; 
 			break; 
-		}
+		}*/
 
 		if (!renders[4]->RenderFrame(images_modified[2])) { 
 			delete renders[4]; 
@@ -1028,6 +1030,7 @@ int wmain(int argc, WCHAR* argv[]) {
 				mode_sheet_capture = true;
 			}else if(curMouseLoc.x > size_VGA.width * 0.7 && curMouseLoc.y > size_VGA.height *0.7){
 				printf("Function work #4!\n");
+				do_carving = true;
 			}
 			isFunctionWork = false;
 		}
@@ -1037,27 +1040,6 @@ int wmain(int argc, WCHAR* argv[]) {
 
 		images.ReleaseRef(0); 
 		images.ReleaseRef(1); 
-
-
-		
-		
-		
-		scene_viewer->addPointCloud (cameraCoord_cloud, "cameraCoord_cloud", vp_1);
-		scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cameraCoord_cloud");
-		scene_viewer->addPointCloud ( worldCoord_cloud, "worldCoord_cloud", vp_2);
-		scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "worldCoord_cloud");
-
-		scene_viewer->spinOnce();
-		scene_viewer->removeText3D("v2 text", vp_2);
-		scene_viewer->removePointCloud("cameraCoord_cloud", vp_1);
-		scene_viewer->removePointCloud ( "worldCoord_cloud" , vp_2);
-		
-
-		
-		
-		
-
-		
 
 	} 
 	// destroy resources 
