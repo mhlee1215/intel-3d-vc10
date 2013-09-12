@@ -159,11 +159,12 @@ public:
     //octree.defineBoundingBox();
     //add points in the tree
     octree_search.addPointsFromInputCloud();
-
-	//printf("octree depth : %d",octree.getTreeDepth());
-
-	extractPointsAtLevel(displayedDepth);
   };
+
+  void drawAndSpin(){
+	  extractPointsAtLevel(displayedDepth);
+	  viz.spinOnce();
+  }
   pcl::visualization::PCLVisualizer viz;
   //octree
   pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZ> octree;
@@ -238,34 +239,6 @@ private:
       boost::this_thread::sleep(boost::posix_time::microseconds(100000));
     }
   }
-
-  /* \brief Helper function that read a pointcloud file (returns false if pbl)
-   *  Also initialize the octree
-   *
-   */
-  //bool loadCloud(std::string &filename)
-  //{
-  //  std::cout << "Loading file " << filename.c_str() << std::endl;
-  //  //read cloud
-  //  if (pcl::io::loadPCDFile(filename, *cloud))
-  //  {
-  //    std::cerr << "ERROR: Cannot open file " << filename << "! Aborting..." << std::endl;
-  //    return false;
-  //  }
-
-  //  //remove NaN Points
-  //  std::vector<int> nanIndexes;
-  //  pcl::removeNaNFromPointCloud(*cloud, *cloud, nanIndexes);
-  //  std::cout << "Loaded " << cloud->points.size() << " points" << std::endl;
-
-  //  //create octree structure
-  //  octree.setInputCloud(cloud);
-  //  //update bounding box automatically
-  //  octree.defineBoundingBox();
-  //  //add points in the tree
-  //  octree.addPointsFromInputCloud();
-  //  return true;
-  //}
 
   /* \brief Helper function that draw info for the user on the viewer
    *

@@ -211,9 +211,9 @@ int wmain(int argc, WCHAR* argv[]) {
 	scene_visualizer->setPosition(350, 530);
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> scene_viewer (scene_visualizer);
 	scene_viewer->initCameraParameters ();
-	scene_viewer->setSize(1500, 430);
-	int vp_1(1), vp_2(1), vp_3(1);
-	int vp_num = 3;
+	scene_viewer->setSize(1000, 430);
+	int vp_1(1), vp_2(1);//, vp_3(1);
+	int vp_num = 2;
 	scene_viewer->createViewPort (0.0, 0.0, 1.0/vp_num, 1.0, vp_1);
 	scene_viewer->setBackgroundColor(0, 0, 0, vp_1);
 	scene_viewer->addText ("Camera Coordination", 10, 10, 20, 1.0, 1.0, 1.0, "v1 title", vp_1);
@@ -225,9 +225,12 @@ int wmain(int argc, WCHAR* argv[]) {
 	scene_viewer->addText ("World Coordination", 10, 10, 20, 1.0, 1.0, 1.0, "v2 title", vp_2);
 	scene_viewer->addText ("Camera Position - ", 10, 30, 15, 1.0, 1.0, 1.0, "v2 camera position", vp_2);
 
-	scene_viewer->createViewPort (2*1.0/vp_num, 0, 1.0, 1.0, vp_3);
-	scene_viewer->setBackgroundColor(0.3, 0.3, 0.3, vp_3);
-	scene_viewer->addText ("Voxel Coloring result", 10, 10, 20, 1.0, 1.0, 1.0, "v3 title", vp_3);
+	OctreeViewer v(0.1);
+	v.viz.setPosition(1350, 0);
+	v.viz.setSize(550, 500);
+	//scene_viewer->createViewPort (2*1.0/vp_num, 0, 1.0, 1.0, vp_3);
+	//scene_viewer->setBackgroundColor(0.3, 0.3, 0.3, vp_3);
+	//scene_viewer->addText ("Voxel Coloring result", 10, 10, 20, 1.0, 1.0, 1.0, "v3 title", vp_3);
 	
 
 	//scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud1");
@@ -269,7 +272,7 @@ int wmain(int argc, WCHAR* argv[]) {
 	
 	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr worldCoord_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);	
 
-	OctreeViewer v(0.001);
+	
 	for (int f=0;;f++, Sleep(5)) { 
 		
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cameraCoord_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
@@ -890,7 +893,7 @@ int wmain(int argc, WCHAR* argv[]) {
 			srand ((unsigned int) time (NULL));
 			//printf("aaa");
 			pcl::PointCloud<pcl::PointXYZ>::Ptr color_voxel_cloud (new pcl::PointCloud<pcl::PointXYZ>);	
-			for(int i = 0 ; i < 1000 ; i++){
+			for(int i = 0 ; i < 3000 ; i++){
 				//for(int j = 0 ; j < 1000 ; j+=50){
 //					for(int k = 0 ; k < 1000 ; k+=50){
 						pcl::PointXYZ p;
@@ -923,40 +926,83 @@ int wmain(int argc, WCHAR* argv[]) {
 			//world_coord_octree.getOccupiedVoxelCenters (pointGrid);
 			 
 			
-			scene_viewer->removePointCloud ( "voxel_coloring_cloud" , vp_3);
-			scene_viewer->addPointCloud (color_voxel_cloud, "voxel_coloring_cloud", vp_3);
-			scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "voxel_coloring_cloud");
+			//scene_viewer->removePointCloud ( "voxel_coloring_cloud" , vp_3);
+			//scene_viewer->addPointCloud (color_voxel_cloud, "voxel_coloring_cloud", vp_3);
+			//scene_viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "voxel_coloring_cloud");
 			scene_viewer->spinOnce();
-			
-			pcl::PointXYZ searchPoint;
-			searchPoint.x = 0.05;
-			searchPoint.y = 0.05;
-			searchPoint.z = 0.05;
-
+	
 			v.update_data(color_voxel_cloud);
-			//0 - 0.01
-			float radius = 0.02;
+
+			std::vector<int> pointIdxIntersected;
+
+			for(int i = 0 ; i < 30 ; i++){
+				for(int j = 0 ; j < 30 ; j++){
+					for(int k = 0 ; k < 30 ; k++){
+						Eigen::Vector3f origin ( 0.001f*i, 0.001f*j, 0.001f*k );
+						Eigen::Vector3f direction ( 0.1f, 0.1f, 0.1f );
+			
+						if(v.octree_search.getIntersectedVoxelIndices(origin, direction, pointIdxIntersected)>0){
+							//printf("pointIdxIntersected size : %d\n", pointIdxIntersected.size());
+							for (size_t i = 0; i < pointIdxIntersected.size (); ++i){
+								//printf("idx : %d\t", pointIdxIntersected[i]);
+								v.octree.deleteVoxelAtPoint(pointIdxIntersected[i]);		
+								v.octree_search.deleteVoxelAtPoint(pointIdxIntersected[i]);
+							}
+						}
+					}
+				}
+			}
+			
+
+			/*pcl::PointXYZ searchPoint;
+			searchPoint.x = 0.08;
+			searchPoint.y = 0.08;
+			searchPoint.z = 0.08;
+
+			float radius = 0.05;
 			std::vector<int> pointIdxRadiusSearch;
 			std::vector<float> pointRadiusSquaredDistance;
-
-			{
-			
-			
-			}
-
 
 			//v.octree_search.radiusSearch(searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance);
 			if (v.octree_search.radiusSearch (searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0)
 			{
-				printf("pointIdxRadiusSearch.size () : %d\n", pointIdxRadiusSearch.size ());
 				for (size_t i = 0; i < pointIdxRadiusSearch.size (); ++i){
-					v.octree.deleteVoxelAtPoint(pointIdxRadiusSearch[i]);
+					//printf("idx : %d\t", pointIdxRadiusSearch[i]);
+					v.octree.deleteVoxelAtPoint(pointIdxRadiusSearch[i]);		
 					v.octree_search.deleteVoxelAtPoint(pointIdxRadiusSearch[i]);
-
 				}
-			}
+				//printf("size : %d\n", v.octree.getInputCloud()->size());
+			}*/
+
+
+
+			//pcl::PointXYZ searchPoint;
+			//searchPoint.x = 0.05;
+			//searchPoint.y = 0.05;
+			//searchPoint.z = 0.05;
+
+	
+			////0 - 0.01
+			//float radius = 0.1;
+			//std::vector<int> pointIdxRadiusSearch;
+			//std::vector<float> pointRadiusSquaredDistance;
+
+			////v.octree_search.radiusSearch(searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance);
+			//if (v.octree_search.radiusSearch (searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0)
+			//{
+			//	//printf("pointIdxRadiusSearch.size () : %d\n", pointIdxRadiusSearch.size ());
+			//	for (size_t i = 0; i < pointIdxRadiusSearch.size (); ++i){
+			//		//printf("idx : %d\t", pointIdxRadiusSearch[i]);
+			//		v.octree.deleteVoxelAtPoint(pointIdxRadiusSearch[i]);
+			//		
+			//		v.octree_search.deleteVoxelAtPoint(pointIdxRadiusSearch[i]);
+
+			//	}
+			//	//printf("size : %d\n", v.octree.getInputCloud()->size());
+			//}
 			//OctreeViewer v(color_voxel_cloud, 0.001);
-			v.viz.spinOnce();
+			//v.viz.spinOnce();
+			v.drawAndSpin();
 		}
 		
 		unsigned char *depth_val = (unsigned char*)(depthImage.data);
