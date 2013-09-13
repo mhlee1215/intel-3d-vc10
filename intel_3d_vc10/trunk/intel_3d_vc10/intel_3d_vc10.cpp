@@ -225,7 +225,7 @@ int wmain(int argc, WCHAR* argv[]) {
 	scene_viewer->addText ("World Coordination", 10, 10, 20, 1.0, 1.0, 1.0, "v2 title", vp_2);
 	scene_viewer->addText ("Camera Position - ", 10, 30, 15, 1.0, 1.0, 1.0, "v2 camera position", vp_2);
 
-	OctreeViewer v(0.1);
+	OctreeViewer v(0.001);
 	v.viz.setPosition(1350, 0);
 	v.viz.setSize(550, 500);
 	//scene_viewer->createViewPort (2*1.0/vp_num, 0, 1.0, 1.0, vp_3);
@@ -892,18 +892,18 @@ int wmain(int argc, WCHAR* argv[]) {
 		else{
 			srand ((unsigned int) time (NULL));
 			//printf("aaa");
-			pcl::PointCloud<pcl::PointXYZ>::Ptr color_voxel_cloud (new pcl::PointCloud<pcl::PointXYZ>);	
-			for(int i = 0 ; i < 3000 ; i++){
+			pcl::PointCloud<pcl::PointXYZRGBA>::Ptr color_voxel_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);	
+			for(int i = 0 ; i < 20 ; i++){
 				//for(int j = 0 ; j < 1000 ; j+=50){
 //					for(int k = 0 ; k < 1000 ; k+=50){
-						pcl::PointXYZ p;
+						pcl::PointXYZRGBA p;
 						p.x = rand ()/(float)(RAND_MAX*10);//i / 10000.0;
 						p.y = rand ()/(float)(RAND_MAX*10);//j / 10000.0;
 						p.z = rand ()/(float)(RAND_MAX*10);//k / 10000.0;
 						//printf("%f, %f, %f\n", p.x, p.y, p.z);
-						//p.r = (i/1000.0) * 255;
-						//p.g = (j/1000.0) * 255;
-						//p.b = (k/1000.0) * 255;
+						p.r = (i/100.0) * 255;
+						p.g = (i/200.0) * 255;
+						p.b = (i/300.0) * 255;
 						color_voxel_cloud->push_back(p);
 	//				}
 		//		}
@@ -935,23 +935,23 @@ int wmain(int argc, WCHAR* argv[]) {
 
 			std::vector<int> pointIdxIntersected;
 
-			for(int i = 0 ; i < 30 ; i++){
-				for(int j = 0 ; j < 30 ; j++){
-					for(int k = 0 ; k < 30 ; k++){
-						Eigen::Vector3f origin ( 0.001f*i, 0.001f*j, 0.001f*k );
-						Eigen::Vector3f direction ( 0.1f, 0.1f, 0.1f );
-			
-						if(v.octree_search.getIntersectedVoxelIndices(origin, direction, pointIdxIntersected)>0){
-							//printf("pointIdxIntersected size : %d\n", pointIdxIntersected.size());
-							for (size_t i = 0; i < pointIdxIntersected.size (); ++i){
-								//printf("idx : %d\t", pointIdxIntersected[i]);
-								v.octree.deleteVoxelAtPoint(pointIdxIntersected[i]);		
-								v.octree_search.deleteVoxelAtPoint(pointIdxIntersected[i]);
-							}
-						}
-					}
-				}
-			}
+			//for(int i = 0 ; i < 30 ; i++){
+			//	for(int j = 0 ; j < 30 ; j++){
+			//		for(int k = 0 ; k < 30 ; k++){
+			//			Eigen::Vector3f origin ( 0.001f*i, 0.001f*j, 0.001f*k );
+			//			Eigen::Vector3f direction ( 0.1f, 0.1f, 0.1f );
+			//
+			//			if(v.octree_search.getIntersectedVoxelIndices(origin, direction, pointIdxIntersected)>0){
+			//				//printf("pointIdxIntersected size : %d\n", pointIdxIntersected.size());
+			//				for (size_t i = 0; i < pointIdxIntersected.size (); ++i){
+			//					//printf("idx : %d\t", pointIdxIntersected[i]);
+			//					v.octree.deleteVoxelAtPoint(pointIdxIntersected[i]);		
+			//					v.octree_search.deleteVoxelAtPoint(pointIdxIntersected[i]);
+			//				}
+			//			}
+			//		}
+			//	}
+			//}
 			
 
 			/*pcl::PointXYZ searchPoint;
