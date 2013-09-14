@@ -893,7 +893,7 @@ int wmain(int argc, WCHAR* argv[]) {
 			srand ((unsigned int) time (NULL));
 			//printf("aaa");
 			pcl::PointCloud<pcl::PointXYZRGBA>::Ptr color_voxel_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);	
-			for(int i = 0 ; i < 20 ; i++){
+			for(int i = 0 ; i < 300 ; i++){
 				//for(int j = 0 ; j < 1000 ; j+=50){
 //					for(int k = 0 ; k < 1000 ; k+=50){
 						pcl::PointXYZRGBA p;
