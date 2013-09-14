@@ -488,43 +488,34 @@ private:
 			//pcl::PointXYZRGBA a;
 			//octree.getVoxelCentroidAtPoint(point_idx, a);
 			
-			pt.r = 0;//255;
+			pt.r = 255;//255;
 			pt.g = 255;
-			pt.b = 0;//255;
+			pt.b = 255;//255;
 
 			
 
 			
 			if(tree_it.isBranchNode()){
 				branch_cnt++;
-				//std::vector<int> p_indices;	
-				//tree_it.getBranchContainer().getPointIndices(p_indices);
 				pcl::octree::OctreePointCloud<pcl::PointXYZRGBA, pcl::octree::OctreeContainerPointIndices, pcl::octree::OctreeContainerPointIndices >::BranchContainer bc = tree_it.getBranchContainer();
-				//int point_idx = tree_it.getBranchContainer().getPointIndex();
-				//printf("brench container point indices : %d, point_idx = %d\n", 0, point_idx);
-
 				pcl::octree::OctreeBranchNode<pcl::octree::OctreeContainerPointIndices>* branchNode = (pcl::octree::OctreeBranchNode<pcl::octree::OctreeContainerPointIndices>*)tree_it.getCurrentOctreeNode();
-				
-				//for(int i = 0 ; i < 8 ; i++){
-				//	if(branchNode->hasChild(i)){
-				//		pcl::octree::OctreeNode* node = (branchNode->getChildPtr(i));
-				//		if(node->getNodeType() == pcl::octree::LEAF_NODE){
-				//			pcl::octree::OctreeContainerPointIndices* leaf_container = ((pcl::octree::OctreeLeafNode<pcl::octree::OctreeContainerPointIndices>*)node)->getContainerPtr();
-				//			int p_id = leaf_container->getPointIndex();
-				//			vector<int> p_dices;
-				//			leaf_container->getPointIndices(p_dices);
-				//			int kk = 10;
-				//			printf("p_id : %d\n", p_id);
-				//			//int p_id = leaf_container->getPointIndex();
-				//		}
-				//	}
-				//}
-
-				//pcl::octree::OctreeBranchNode<pcl::octree::OctreeContainerPointIndex>* branchNode = (pcl::octree::OctreeBranchNode<pcl::octree::OctreeContainerPointIndex>*)tree_it.getCurrentOctreeNode();
-
 				vector<pcl::PointXYZRGBA> subPoints = getSubtreePoints<pcl::PointXYZRGBA, pcl::octree::OctreeContainerPointIndices>(branchNode);
 
-				displayCloud->points.push_back(pt);
+				float r,g,b;
+				r=0;
+				g=0;
+				b=0;
+				for(int i = 0 ; i < subPoints.size() ; i++){
+					r += subPoints[i].r;
+					g += subPoints[i].g;
+					b += subPoints[i].b;
+				}
+
+				pt.r = r/subPoints.size();//255;
+				pt.g = g/subPoints.size();//255;
+				pt.b = b/subPoints.size();//0;//255;
+
+				//displayCloud->points.push_back(pt);
 			}else{
 				leaf_cnt++;
 				//printf("this is leaf node!\n");
@@ -538,7 +529,7 @@ private:
 				//lc.addPoint(pt);
 				int point_idx = tree_it.getLeafContainer().getPointIndex();
 				pcl::PointXYZRGBA leaf_p = octree.getInputCloud()->points[point_idx];
-				printf("point_idx : %d\n", point_idx);
+				//printf("point_idx : %d\n", point_idx);
 				pt.r = leaf_p.r;
 				pt.g = leaf_p.g;
 				pt.b = leaf_p.b;
@@ -548,7 +539,7 @@ private:
 			}
 			//pcl::octree::OctreeIteratorBase<pcl::PointXYZRGBA>::BranchContainer a = tree_it.getBranchContainer();
 
-			//displayCloud->points.push_back(pt);
+			displayCloud->points.push_back(pt);
 
 		}
 		printf("display points # : %d\n", displayCloud->points.size());
